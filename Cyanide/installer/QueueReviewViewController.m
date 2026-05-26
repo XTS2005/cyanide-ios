@@ -28,7 +28,7 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    self.title = @"Queue";
+    self.title = @"待处理";
     self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
 
     self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
@@ -43,7 +43,7 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
 
     self.emptyLabel = [[UILabel alloc] init];
     self.emptyLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    self.emptyLabel.text = @"No pending changes.\nQueue packages from the Installer tab.";
+    self.emptyLabel.text = @"暂无待处理更改。\n在“安装器”标签页中加入待处理。";
     self.emptyLabel.font = [UIFont systemFontOfSize:16.0];
     self.emptyLabel.textColor = UIColor.secondaryLabelColor;
     self.emptyLabel.textAlignment = NSTextAlignmentCenter;
@@ -90,7 +90,7 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
 
     self.confirmButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.confirmButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.confirmButton setTitle:@"Confirm" forState:UIControlStateNormal];
+    [self.confirmButton setTitle:@"确认" forState:UIControlStateNormal];
     [self.confirmButton setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
     self.confirmButton.titleLabel.font = [UIFont systemFontOfSize:17.0 weight:UIFontWeightSemibold];
     self.confirmButton.backgroundColor = self.view.tintColor;
@@ -101,7 +101,7 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
 
     self.clearButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.clearButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.clearButton setTitle:@"Clear Queue" forState:UIControlStateNormal];
+    [self.clearButton setTitle:@"清空待处理" forState:UIControlStateNormal];
     [self.clearButton setTitleColor:UIColor.systemRedColor forState:UIControlStateNormal];
     self.clearButton.titleLabel.font = [UIFont systemFontOfSize:14.0 weight:UIFontWeightRegular];
     [self.clearButton addTarget:self action:@selector(didTapClear) forControlEvents:UIControlEventTouchUpInside];
@@ -132,11 +132,11 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
     self.clearButton.alpha = (count > 0) ? 1.0 : 0.4;
 
     if (count == 1) {
-        [self.confirmButton setTitle:@"Confirm 1 Change" forState:UIControlStateNormal];
+        [self.confirmButton setTitle:@"确认 1 项更改" forState:UIControlStateNormal];
     } else if (count > 1) {
-        [self.confirmButton setTitle:[NSString stringWithFormat:@"Confirm %ld Changes", (long)count] forState:UIControlStateNormal];
+        [self.confirmButton setTitle:[NSString stringWithFormat:@"确认 %ld 项更改", (long)count] forState:UIControlStateNormal];
     } else {
-        [self.confirmButton setTitle:@"Confirm" forState:UIControlStateNormal];
+        [self.confirmButton setTitle:@"确认" forState:UIControlStateNormal];
     }
 }
 
@@ -194,9 +194,9 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
     }
     NSString *label;
     switch ((QueueReviewSection)section) {
-        case QueueReviewSectionInstall:   label = allOTA ? @"Disable" : @"Install";    break;
-        case QueueReviewSectionUninstall: label = allOTA ? @"Enable" : @"Uninstall";   break;
-        case QueueReviewSectionReApply:   label = @"Will Re-Apply";    break;
+        case QueueReviewSectionInstall:   label = allOTA ? @"禁用" : @"安装";    break;
+        case QueueReviewSectionUninstall: label = allOTA ? @"启用" : @"卸载";   break;
+        case QueueReviewSectionReApply:   label = @"将重新应用";    break;
         default:                          return nil;
     }
     return [NSString stringWithFormat:@"%@  ·  %ld", label, (long)list.count];
@@ -206,7 +206,7 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
 {
     if ((QueueReviewSection)section != QueueReviewSectionReApply) return nil;
     if ([self reApplyPackages].count == 0) return nil;
-    return @"These are already installed, not newly queued changes. Confirming re-runs the chain so installed RemoteCall-backed tweaks come back after a force-quit. To stop one from running, uninstall it from the Installer tab, or use Reset All Packages in Settings → Quick Actions.";
+    return @"这些是已安装的包，不是新的待处理更改。确认后会重新运行链，以便已安装的 RemoteCall 插件在强制退出后恢复。如果想停止某个插件运行，请从安装器标签页中卸载它，或在“设置”→“快速操作”中使用“重置所有包”。";
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
@@ -224,15 +224,15 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
         case QueueReviewSectionInstall:
             switch (pkg.kind) {
                 case PackageInstallKindOTA:
-                    cell.detailTextLabel.text = @"Pending OTA disable";
+                    cell.detailTextLabel.text = @"待禁用 OTA";
                     cell.detailTextLabel.textColor = UIColor.systemOrangeColor;
                     break;
                 case PackageInstallKindNanoRegistry:
-                    cell.detailTextLabel.text = @"Pending override apply";
+                    cell.detailTextLabel.text = @"待应用覆盖设置";
                     cell.detailTextLabel.textColor = self.view.tintColor;
                     break;
                 default:
-                    cell.detailTextLabel.text = @"Pending install";
+                    cell.detailTextLabel.text = @"待安装";
                     cell.detailTextLabel.textColor = UIColor.systemGreenColor;
                     break;
             }
@@ -240,21 +240,21 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
         case QueueReviewSectionUninstall:
             switch (pkg.kind) {
                 case PackageInstallKindOTA:
-                    cell.detailTextLabel.text = @"Pending OTA enable";
+                    cell.detailTextLabel.text = @"待启用 OTA";
                     cell.detailTextLabel.textColor = UIColor.systemGreenColor;
                     break;
                 case PackageInstallKindNanoRegistry:
-                    cell.detailTextLabel.text = @"Pending override remove";
+                    cell.detailTextLabel.text = @"待移除覆盖设置";
                     cell.detailTextLabel.textColor = UIColor.systemRedColor;
                     break;
                 default:
-                    cell.detailTextLabel.text = @"Pending removal";
+                    cell.detailTextLabel.text = @"待移除";
                     cell.detailTextLabel.textColor = UIColor.systemRedColor;
                     break;
             }
             break;
         case QueueReviewSectionReApply:
-            cell.detailTextLabel.text = @"Installed; will re-apply";
+            cell.detailTextLabel.text = @"已安装；将重新应用";
             cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
             break;
         default:
@@ -283,7 +283,7 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
 
     Package *pkg = [self packagesForSection:indexPath.section][indexPath.row];
     UIContextualAction *remove = [UIContextualAction contextualActionWithStyle:UIContextualActionStyleDestructive
-                                                                         title:@"Remove"
+                                                                         title:@"移除"
                                                                        handler:^(UIContextualAction * _Nonnull action, __kindof UIView * _Nonnull sourceView, void (^ _Nonnull completionHandler)(BOOL)) {
         [[PackageQueue sharedQueue] removePackage:pkg];
         completionHandler(YES);
@@ -310,11 +310,11 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
 - (void)didTapClear
 {
     if ([PackageQueue sharedQueue].pendingCount == 0) return;
-    UIAlertController *ac = [UIAlertController alertControllerWithTitle:@"Clear Queue?"
-                                                                message:@"Discard all pending install / uninstall changes."
+    UIAlertController *ac = [UIAlertController alertControllerWithTitle:@"清空待处理？"
+                                                                message:@"丢弃所有待处理的安装/卸载更改。"
                                                          preferredStyle:UIAlertControllerStyleAlert];
-    [ac addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [ac addAction:[UIAlertAction actionWithTitle:@"Clear" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *_) {
+    [ac addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [ac addAction:[UIAlertAction actionWithTitle:@"清空" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *_) {
         [[PackageQueue sharedQueue] clear];
     }]];
     [self presentViewController:ac animated:YES completion:nil];

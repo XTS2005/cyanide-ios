@@ -46,25 +46,25 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
 {
     if (intent != PackageQueueIntentNone) {
         if (self.package.kind == PackageInstallKindNanoRegistry) {
-            return (intent == PackageQueueIntentInstall) ? @"Cancel Apply" : @"Cancel Remove";
+            return (intent == PackageQueueIntentInstall) ? @"取消应用" : @"取消移除";
         }
-        return (intent == PackageQueueIntentInstall) ? @"Cancel Disable" : @"Cancel Enable";
+        return (intent == PackageQueueIntentInstall) ? @"取消禁用" : @"取消启用";
     }
-    if (self.package.kind == PackageInstallKindNanoRegistry) return @"Apply/Remove";
-    return @"Disable/Enable";
+    if (self.package.kind == PackageInstallKindNanoRegistry) return @"应用/移除";
+    return @"禁用/启用";
 }
 
 - (NSString *)manualStateText
 {
     PackageQueueIntent intent = [[PackageQueue sharedQueue] intentForPackage:self.package];
     if (self.package.kind == PackageInstallKindNanoRegistry) {
-        if (intent == PackageQueueIntentInstall) return @"Apply Queued";
-        if (intent == PackageQueueIntentUninstall) return @"Remove Queued";
-        return @"Manual Control";
+        if (intent == PackageQueueIntentInstall) return @"待应用";
+        if (intent == PackageQueueIntentUninstall) return @"待移除";
+        return @"手动控制";
     }
-    if (intent == PackageQueueIntentInstall) return @"Disable Queued";
-    if (intent == PackageQueueIntentUninstall) return @"Enable Queued";
-    return @"Manual Control";
+    if (intent == PackageQueueIntentInstall) return @"待禁用";
+    if (intent == PackageQueueIntentUninstall) return @"待启用";
+    return @"手动控制";
 }
 
 - (UIColor *)manualStateColor
@@ -78,7 +78,7 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
 {
     if (![self isManualPackage]) return self.infoRows;
     NSMutableArray<NSArray<NSString *> *> *rows = [self.infoRows mutableCopy];
-    [rows addObject:@[@"State", [self manualStateText]]];
+    [rows addObject:@[@"状态", [self manualStateText]]];
     return rows;
 }
 
@@ -97,14 +97,14 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
 - (UIMenu *)manualActionMenu
 {
     if (self.package.kind == PackageInstallKindNanoRegistry) {
-        UIAction *apply = [UIAction actionWithTitle:@"Apply Pairing Override"
+        UIAction *apply = [UIAction actionWithTitle:@"应用配对覆盖设置"
                                               image:[UIImage systemImageNamed:@"applewatch.radiowaves.left.and.right"]
                                          identifier:nil
                                             handler:^(__kindof UIAction *_) {
             [self queueManualIntent:PackageQueueIntentInstall];
         }];
 
-        UIAction *remove = [UIAction actionWithTitle:@"Remove Pairing Override"
+        UIAction *remove = [UIAction actionWithTitle:@"移除配对覆盖设置"
                                                image:[UIImage systemImageNamed:@"xmark.circle"]
                                           identifier:nil
                                              handler:^(__kindof UIAction *_) {
@@ -112,10 +112,10 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
         }];
         remove.attributes = UIMenuElementAttributesDestructive;
 
-        return [UIMenu menuWithTitle:@"Watch Pairing Override" children:@[apply, remove]];
+        return [UIMenu menuWithTitle:@"手表配对覆盖设置" children:@[apply, remove]];
     }
 
-    UIAction *disable = [UIAction actionWithTitle:@"Disable OTA Updates"
+    UIAction *disable = [UIAction actionWithTitle:@"禁用 OTA 更新"
                                             image:[UIImage systemImageNamed:@"icloud.slash"]
                                        identifier:nil
                                           handler:^(__kindof UIAction *_) {
@@ -123,14 +123,14 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
     }];
     disable.attributes = UIMenuElementAttributesDestructive;
 
-    UIAction *enable = [UIAction actionWithTitle:@"Enable OTA Updates"
+    UIAction *enable = [UIAction actionWithTitle:@"启用 OTA 更新"
                                            image:[UIImage systemImageNamed:@"icloud"]
                                       identifier:nil
                                          handler:^(__kindof UIAction *_) {
         [self queueManualIntent:PackageQueueIntentUninstall];
     }];
 
-    return [UIMenu menuWithTitle:@"OTA Updates" children:@[disable, enable]];
+    return [UIMenu menuWithTitle:@"OTA 更新" children:@[disable, enable]];
 }
 
 - (instancetype)initWithPackage:(Package *)package
@@ -138,10 +138,10 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
     if ((self = [super initWithStyle:UITableViewStyleInsetGrouped])) {
         _package = package;
         _infoRows = @[
-            @[@"Name",     package.name],
-            @[@"Version",  package.version],
-            @[@"Author",   package.author],
-            @[@"Category", package.category],
+            @[@"名称",     package.name],
+            @[@"版本",     package.version],
+            @[@"作者",     package.author],
+            @[@"分类",     package.category],
         ];
         NSMutableArray<NSNumber *> *sections = [NSMutableArray array];
         if (package.unstableWarning.length > 0) {
@@ -252,7 +252,7 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
     // Subtitle: Category · Version
     UILabel *subLabel = [[UILabel alloc] init];
     subLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    subLabel.text = [NSString stringWithFormat:@"%@  ·  Version %@", self.package.category, self.package.version];
+    subLabel.text = [NSString stringWithFormat:@"%@  ·  版本 %@", self.package.category, self.package.version];
     subLabel.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightRegular];
     subLabel.textColor = UIColor.secondaryLabelColor;
     subLabel.textAlignment = NSTextAlignmentCenter;
@@ -266,15 +266,15 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
                          background:[color colorWithAlphaComponent:0.16]
                           textColor:color];
     } else if (self.package.experimental) {
-        badge = [self badgeWithText:@"EXPERIMENTAL"
+        badge = [self badgeWithText:@"实验性"
                          background:[UIColor.systemRedColor colorWithAlphaComponent:0.16]
                           textColor:UIColor.systemRedColor];
     } else if (self.package.isInstallDisabled) {
-        badge = [self badgeWithText:@"DISABLED"
+        badge = [self badgeWithText:@"存在问题"
                          background:[UIColor.systemRedColor colorWithAlphaComponent:0.16]
                           textColor:UIColor.systemRedColor];
     } else if (self.package.isNew) {
-        badge = [self badgeWithText:@"NEW"
+        badge = [self badgeWithText:@"新"
                          background:[UIColor colorWithRed:0.95 green:0.55 blue:0.05 alpha:0.18]
                           textColor:[UIColor systemOrangeColor]];
     }
@@ -359,19 +359,19 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
             : self.view.tintColor;
         if (intent == PackageQueueIntentNone) style = UIBarButtonItemStyleDone;
     } else if (intent != PackageQueueIntentNone) {
-        title = @"Queued";
+        title = @"待处理";
         tint = UIColor.secondaryLabelColor;
     } else if (installed) {
-        title = @"Uninstall";
+        title = @"卸载";
         tint = UIColor.systemRedColor;
     } else if (self.package.isInstallDisabled) {
-        title = @"Disabled";
+        title = @"已禁用";
         tint = UIColor.secondaryLabelColor;
     } else if ([self needsThemeBeforeInstall]) {
-        title = @"Select Theme";
+        title = @"选择主题";
         style = UIBarButtonItemStyleDone;
     } else {
-        title = @"Install";
+        title = @"安装";
         style = UIBarButtonItemStyleDone;
     }
 
@@ -425,15 +425,15 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
 
 - (void)promptSelectThemeBeforeInstall
 {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Select a Theme"
-                                                                   message:@"Cyanide Themer needs a selected theme before it can be queued. Choose iOS 6 Theme or import a custom theme first."
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"选择一个主题"
+                                                                   message:@"Cyanide 主题需要先选择一个主题才能加入待处理。请选择 iOS 6 主题或先导入一个自定义主题。"
                                                             preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Open Theme Settings"
+    [alert addAction:[UIAlertAction actionWithTitle:@"打开主题设置"
                                              style:UIAlertActionStyleDefault
                                            handler:^(UIAlertAction *_) {
         [self navigateToSettingsSection];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel"
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消"
                                              style:UIAlertActionStyleCancel
                                            handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
@@ -442,23 +442,23 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
 - (void)promptConfigureBeforeInstall
 {
     NSString *msg = [NSString stringWithFormat:
-        @"%@ has configurable options. Set them up first so the tweak applies with your preferences on the first run.",
+        @"%@ 有可配置的选项。请先配置好，这样插件就能在首次运行时应用您的偏好设置。",
         self.package.name];
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Customize Before Installing?"
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"安装前先配置？"
                                                                    message:msg
                                                             preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Configure First"
+    [alert addAction:[UIAlertAction actionWithTitle:@"先去配置"
                                              style:UIAlertActionStyleDefault
                                            handler:^(UIAlertAction *_) {
         [self navigateToSettingsSection];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Install Anyway"
+    [alert addAction:[UIAlertAction actionWithTitle:@"仍然安装"
                                              style:UIAlertActionStyleDefault
                                            handler:^(UIAlertAction *_) {
         log_user("[INSTALLER] Queued install: %s\n", self.package.name.UTF8String);
         [[PackageQueue sharedQueue] toggleForPackage:self.package];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel"
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消"
                                              style:UIAlertActionStyleCancel
                                            handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
@@ -488,10 +488,10 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
 {
     switch ([self sectionAtIndex:section]) {
         case PackageDetailSectionWarning:     return nil;
-        case PackageDetailSectionInfo:        return @"Information";
-        case PackageDetailSectionAction:      return @"Configure";
-        case PackageDetailSectionSettings:    return @"Current Settings";
-        case PackageDetailSectionDescription: return @"Description";
+        case PackageDetailSectionInfo:        return @"信息";
+        case PackageDetailSectionAction:      return @"配置";
+        case PackageDetailSectionSettings:    return @"当前设置";
+        case PackageDetailSectionDescription: return @"描述";
         case PackageDetailSectionCount:       return nil;
     }
     return nil;
@@ -500,7 +500,7 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section
 {
     if ([self sectionAtIndex:section] == PackageDetailSectionAction) {
-        return @"Settings can be changed any time — before or after install. Configuring before install is best so the tweak applies with your options on the very next run.";
+        return @"设置可以随时更改 — 安装前或安装后均可。最好在安装前配置，这样插件就能在下次运行时立即应用您的选项。";
     }
     return nil;
 }
@@ -564,7 +564,7 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
             NSString *value = row.count > 1 ? row[1] : @"";
             cell.textLabel.text = label;
             cell.detailTextLabel.text = value;
-            cell.detailTextLabel.textColor = ([self isManualPackage] && [label isEqualToString:@"State"])
+            cell.detailTextLabel.textColor = ([self isManualPackage] && [label isEqualToString:@"状态"])
                 ? [self manualStateColor]
                 : UIColor.secondaryLabelColor;
             cell.detailTextLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
@@ -602,10 +602,10 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
                 cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
                                               reuseIdentifier:@"ActionCell"];
             }
-            cell.textLabel.text = [NSString stringWithFormat:@"Customize %@", self.package.name];
+            cell.textLabel.text = [NSString stringWithFormat:@"自定义 %@", self.package.name];
             cell.textLabel.textColor = self.view.tintColor;
             cell.textLabel.font = [UIFont systemFontOfSize:17.0 weight:UIFontWeightSemibold];
-            cell.detailTextLabel.text = @"Adjust options in the Settings tab";
+            cell.detailTextLabel.text = @"在“设置”标签页中调整选项";
             cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
             cell.imageView.image = [UIImage systemImageNamed:@"slider.horizontal.3"];
             cell.imageView.tintColor = self.view.tintColor;
@@ -633,7 +633,7 @@ typedef NS_ENUM(NSInteger, PackageDetailSection) {
     UINavigationController *settingsNav = nil;
     for (NSUInteger i = 0; i < tab.viewControllers.count; i++) {
         UIViewController *vc = tab.viewControllers[i];
-        if ([vc.tabBarItem.title isEqualToString:@"Settings"]) {
+        if ([vc.tabBarItem.title isEqualToString:@"设置"]) {
             settingsIndex = i;
             if ([vc isKindOfClass:UINavigationController.class]) {
                 settingsNav = (UINavigationController *)vc;
