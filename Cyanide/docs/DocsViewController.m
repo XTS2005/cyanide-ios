@@ -250,8 +250,8 @@ static NSString * const kFooterID      = @"DocsFooter";
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    self.title = @"Docs";
-    self.navigationItem.title = @"Docs";
+    self.title = @"文档";
+    self.navigationItem.title = @"文档";
 
     self.tableView.rowHeight = UITableViewAutomaticDimension;
     self.tableView.estimatedRowHeight = 80.0;
@@ -467,111 +467,95 @@ static NSString * const kFooterID      = @"DocsFooter";
         @"MSHookFunction(...)                  not available here";
 
     self.sections = @[
-        @{ @"title": @"How tweaks work",
+        @{ @"title": @"插件工作原理",
            @"symbol": @"book.closed.fill",
            @"tint": UIColor.systemPurpleColor,
-           @"footer": @"Read sbcustomizer.m, statbar.m, rssidisplay.m, and axonlite.m in "
-                      @"Cyanide/tweaks/ for shipped patterns at increasing complexity.",
+           @"footer": @"请阅读以下文件：sbcustomizer.m、statbar.m、rssidisplay.m、axonlite.m，位于 "
+                      @"请参阅 Cyanide/tweaks/ 目录，其中包含按复杂度递增排列的已发布模式。",
            @"rows": @[
                @{ @"kind": @"prose",
-                  @"text": @"Cyanide tweaks are app-side drivers. No SpringBoard dylibs, no "
-                           @"Substrate hooks, no swizzled methods. The app reaches into the "
-                           @"target from outside." },
+                  @"text": @"Cyanide 的插件都是跑在 App 内部的，不是往桌面（SpringBoard）里注动态库的那种，也不"
+                           @"用的是 Substrate 原生 Hook，不搞 Method Swizzling 那一套。App 自己去调用"
+                           @"从外部获取目标。" },
                @{ @"kind": @"prose",
-                  @"text": @"A RemoteCall session is the bridge. From inside one you send "
-                           @"Objective-C messages, read and write memory, and call C symbols "
-                           @"in the target process." },
+                  @"text": @"RemoteCall 会话是桥梁。在会话内部，你可以发送 Objective-C 消息、读写内存，"
+                           @"并在目标进程中调用 C 符号。" },
                @{ @"kind": @"prose",
-                  @"text": @"Settings holds the SpringBoard channel during Apply Tweaks. Your "
-                           @"code runs inside it under settings_rc_lock(), via three "
-                           @"entrypoints: apply_in_session, optional stop_in_session, and "
-                           @"forget_remote_state." },
+                  @"text": @"在“应用插件”期间，Settings 持有 SpringBoard 通道。你的代码在 settings_rc_lock() 内，"
+                           @"通过三个入口点运行：apply_in_session、可选的 stop_in_session 和 forget_remote_state。" },
            ]},
 
-        @{ @"title": @"The remote_objc API",
+        @{ @"title": @"remote_objc API",
            @"symbol": @"chevron.left.forwardslash.chevron.right",
            @"tint": UIColor.systemBlueColor,
-           @"footer": @"_main variants dispatch to the target main thread (use them for "
-                      @"UIKit). _raw passes non-pointer arguments by value. "
-                      @"r_msg2_main_struct_ret copies struct returns such as CGRect.",
+           @"footer": @"_main 变体会调度到目标主线程（用于 UIKit）。_raw 按值传递非指针参数。"
+                      @"r_msg2_main_struct_ret 复制结构体返回值，如 CGRect。",
            @"rows": @[
                @{ @"kind": @"prose",
-                  @"text": @"Import remote_objc.h and ../TaskRop/RemoteCall.h. Helpers assume "
-                           @"an active session — don't call init_remote_call yourself unless "
-                           @"you need a private channel." },
+                  @"text": @"导入 remote_objc.h 和 ../TaskRop/RemoteCall.h。辅助函数假定存在活跃会话——"
+                           @"除非你需要私有通道，否则不要自己调用 init_remote_call。" },
                @{ @"kind": @"code", @"filename": @"remote_objc.h", @"text": apiCheat },
            ]},
 
-        @{ @"title": @"A minimal tweak",
+        @{ @"title": @"一个最小插件示例",
            @"symbol": @"doc.text.fill",
            @"tint": UIColor.systemOrangeColor,
-           @"footer": @"Drop both files in Cyanide/tweaks/. The Xcode project uses "
-                      @"PBXFileSystemSynchronizedRootGroup, so new files are picked up "
-                      @"automatically — no pbxproj edits needed.",
+           @"footer": @"将两个文件放入 Cyanide/tweaks/。Xcode 项目使用 PBXFileSystemSynchronizedRootGroup，"
+                      @"新文件会自动被识别——无需编辑 pbxproj。",
            @"rows": @[
                @{ @"kind": @"prose",
-                  @"text": @"A complete RemoteCall-only tweak: paints an 80×80 red square on "
-                           @"a SpringBoard window." },
+                  @"text": @"一个完整的仅使用 RemoteCall 的插件：在 SpringBoard 窗口上绘制一个 80×80 的红色方块。" },
                @{ @"kind": @"prose",
-                  @"text": @"Idempotent on reapply, undoes itself on stop, drops cached "
-                           @"pointers on respawn." },
+                  @"text": @"重新应用时幂等，停止时撤销自身，重启时丢弃缓存的指针。" },
                @{ @"kind": @"code", @"filename": @"hello_tweak.h", @"text": helloHeader },
                @{ @"kind": @"code", @"filename": @"hello_tweak.m", @"text": helloImpl },
            ]},
 
-        @{ @"title": @"Wiring into Settings",
+        @{ @"title": @"接入设置",
            @"symbol": @"gearshape.2.fill",
            @"tint": UIColor.systemGreenColor,
-           @"footer": @"Mirror an existing kSettings…Enabled path — search "
-                      @"kSettingsStatBarEnabled or kSettingsAxonLiteEnabled for a complete "
-                      @"template covering defaults, rows, package state, Run, live apply, "
-                      @"stop, and cleanup.",
+           @"footer": @"模仿现有的 kSettings…Enabled 路径——搜索 kSettingsStatBarEnabled 或 kSettingsAxonLiteEnabled，"
+                      @"获取完整的模板，涵盖默认值、行、包状态、Run、实时应用、停止和清理。",
            @"rows": @[
                @{ @"kind": @"prose",
-                  @"text": @"SettingsViewController.m is the orchestrator. Add five things: a "
-                           @"defaults key, a switch row, a Run-path apply, a live-apply "
-                           @"branch, and forget_remote_state in cleanup." },
+                  @"text": @"SettingsViewController.m 是编排器。添加五样东西：一个 defaults 键、一个开关行、"
+                           @"一个 Run 路径应用、一个实时应用分支，以及清理中的 forget_remote_state。" },
                @{ @"kind": @"prose",
-                  @"text": @"Every apply checks g_springboard_rc_ready inside "
-                           @"@synchronized(settings_rc_lock()). settings_mark_tweak_applied() "
-                           @"keeps package state honest. forget_remote_state() runs on "
-                           @"respring and abandon." },
+                  @"text": @"每次应用都会在 @synchronized(settings_rc_lock()) 内检查 g_springboard_rc_ready。"
+                           @"settings_mark_tweak_applied() 保持包状态准确。forget_remote_state() 在重启和放弃时运行。" },
                @{ @"kind": @"code", @"filename": @"SettingsViewController.m", @"text": wiring },
            ]},
 
-        @{ @"title": @"Porting from Theos / Substrate",
+        @{ @"title": @"从 Theos / Substrate 移植",
            @"symbol": @"arrow.triangle.2.circlepath",
            @"tint": UIColor.systemPinkColor,
-           @"footer": @"Shipped templates: sbcustomizer (dock layout), darksword_tweaks "
-                      @"(SpringBoard state toggles), powercuff (thermalmonitord one-shot), "
-                      @"statbar (overlay window), rssidisplay (per-icon overlays), "
-                      @"axonlite (cached NC state).",
+           @"footer": @"已发布的模板：sbcustomizer（程序坞布局）、darksword_tweaks（SpringBoard 状态开关）、"
+                      @"powercuff（一次性 thermalmonitord）、statbar（覆盖层窗口）、"
+                      @"rssidisplay（每个图标的覆盖层）、axonlite（缓存的通知中心状态）。",
            @"rows": @[
                @{ @"kind": @"prose",
-                  @"text": @"RemoteCall isn't a hook framework. You can't intercept a method "
-                           @"or replace a C function in place." },
+                  @"text": @"RemoteCall 不是钩子框架。你无法拦截方法或原地替换 C 函数。" },
                @{ @"kind": @"prose",
-                  @"text": @"Ports work when the effect is a finite mutation — set this "
-                           @"property, call this controller method, add this view, hold this "
-                           @"assertion, or refresh on a timer." },
+                  @"text": @"当效果是有限突变时，移植是可行的——设置某个属性、调用某个控制器方法、"
+                           @"添加视图、持有某个断言或按定时器刷新。" },
                @{ @"kind": @"code", @"filename": @"Theos → RemoteCall", @"text": portingNotes },
                @{ @"kind": @"prose",
-                  @"text": @"Targeting another process? Open a separate session with "
-                           @"init_remote_call(name, false), do the work, destroy_remote_call "
-                           @"before switching back. Powercuff does this for thermalmonitord." },
+                  @"text": @"目标是其他进程？使用 init_remote_call(name, false) 打开单独的会话，"
+                           @"完成工作，在切换回来之前调用 destroy_remote_call。"
+                           @"Powercuff 对 thermalmonitord 就是这样做的。" },
            ]},
 
-        @{ @"title": @"Contribute",
+        @{ @"title": @"贡献代码",
            @"symbol": @"arrow.up.right.square.fill",
            @"tint": UIColor.systemRedColor,
            @"footer": @"",
            @"rows": @[
                @{ @"kind": @"prose",
-                  @"text": @"Build with ./scripts/build.sh — the IPA is packaged under "
-                           @"build/. Sideload, test on device, attach Log-tab output to your "
+                  @"text": @"使用 ./scripts/build.sh 构建 — IPA 包生成在"
+                           @"build/ 目录下。进行侧载安装，在设备上测试，并将「日志」标签页的输出附加到您的"
                            @"PR." },
                @{ @"kind": @"prose",
-                  @"text": @"Source and issues: https://github.com/zeroxjf/cyanide-ios" },
+                  @"text": @"源码和问题反馈：https://github.com/zeroxjf/cyanide-ios" },
            ]},
     ];
 }
