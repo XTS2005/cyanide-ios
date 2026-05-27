@@ -3229,7 +3229,7 @@ void settings_run_actions(void)
             }
             cyanide_upload_log_milestone(@"run-plan");
 
-            settings_progress(&step, total, "准备 KRW 原语（套接字/IOSurface 路径）");
+            settings_progress(&step, total, "准备 KRW 原语（socket/IOSurface 路径）");
             if (!settings_ensure_kexploit()) {
                 log_user("[RUN] Failed: kernel primitives were not acquired.\n");
                 runCompletionMessage = @"失败：未获取到内核原语。";
@@ -3240,7 +3240,7 @@ void settings_run_actions(void)
             cyanide_upload_log_milestone(@"krw-ready");
 
             if (patchSandboxExt) {
-                settings_progress(&step, total, "正在修补沙盒扩展问题路径");
+                settings_progress(&step, total, "正在修补沙盒扩展发放路径");
                 escape_sbx_demo3();
                 log_user("[OK] Sandbox-extension patch stage finished.\n");
                 cyanide_upload_log_milestone(@"sandbox-ext-patched");
@@ -3267,7 +3267,7 @@ void settings_run_actions(void)
                    g_springboard_rc_ready);
 
             if (runPowercuff) {
-                settings_progress(&step, total, "正在通过 thermalmonitord 应用 Powercuff");
+                settings_progress(&step, total, "正在通过温控守护进程应用 Powercuff");
                 if (g_springboard_rc_ready ||
                     g_statbar_live_running ||
                     g_rssi_live_running ||
@@ -3293,10 +3293,10 @@ void settings_run_actions(void)
 
             if (needsSpringBoard) {
                 @synchronized (settings_rc_lock()) {
-                    settings_progress(&step, total, "正在打开 SpringBoard RemoteCall 会话");
+                    settings_progress(&step, total, "正在打开主屏幕 RemoteCall 通道");
                     if (!settings_ensure_springboard_remote_call_locked()) {
                         log_user("[RUN] Failed: could not open the SpringBoard control session.\n");
-                        runCompletionMessage = @"失败：无法打开 SpringBoard 控制会话。";
+                        runCompletionMessage = @"失败：无法打开主屏幕控制通道。";
                         cyanide_upload_log_milestone(@"springboard-remote-call-failed");
                         return;
                     }
@@ -3304,7 +3304,7 @@ void settings_run_actions(void)
                     cyanide_upload_log_milestone(@"springboard-remote-call-ready");
 
                     if (runSandboxEscape && !g_springboard_sandbox_escaped) {
-                        settings_progress(&step, total, "正在使用 SpringBoard 沙盒扩展");
+                        settings_progress(&step, total, "正在使用主屏幕沙盒扩展");
                         int sbx = escape_sbx_demo2_in_session();
                         g_springboard_sandbox_escaped = (sbx == 0);
                         printf("[SETTINGS] sandbox escape in session result=%d\n", sbx);
@@ -3314,7 +3314,7 @@ void settings_run_actions(void)
                         cyanide_upload_log_milestone(sbx == 0 ? @"springboard-sandbox-token-ready" : @"springboard-sandbox-token-warning");
                     } else if (runSandboxEscape) {
                         printf("[SETTINGS] sandbox escape already consumed for this SpringBoard session\n");
-                        settings_progress(&step, total, "正在复用 SpringBoard 沙盒令牌");
+                        settings_progress(&step, total, "正在复用主屏幕沙盒令牌");
                         log_user("[OK] SpringBoard filesystem token already consumed.\n");
                         cyanide_upload_log_milestone(@"springboard-sandbox-token-reused");
                     }
@@ -3344,7 +3344,7 @@ void settings_run_actions(void)
                     }
 
                     if (runDarkTweaks) {
-                        settings_progress(&step, total, "正在应用 DarkSword 运行时钩子");
+                        settings_progress(&step, total, "正在应用 DarkSword 运行时 hooks");
                         bool ok = settings_apply_dark_tweaks_from_defaults_locked(d);
                         for (NSString *key in @[
                             kSettingsDSDisableAppLibrary,
@@ -3388,7 +3388,7 @@ void settings_run_actions(void)
                     }
 
                     if (runStatBar) {
-                        settings_progress(&step, total, "正在启动 StatBar 叠加层和 1 秒刷新");
+                        settings_progress(&step, total, "正在启动 StatBar 叠加层与每秒刷新");
                         bool ok = statbar_apply_in_session([d boolForKey:kSettingsStatBarCelsius],
                                                            [d boolForKey:kSettingsStatBarShowNet],
                                                            [d boolForKey:kSettingsStatBarShowCPU],
@@ -3662,10 +3662,10 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section
 {
     if (section == 0) {
-        return @"只有 Bundle ID 匹配的图标会改变。缺失的应用保留默认图标。";
+        return @"仅匹配到的包名 ID 对应的图标会更换。未匹配到的 App 保持原生图标不变。";
     }
     if (section == 1) {
-        return @"当你想要一个便携文件而不是 PNG 文件夹时，使用二进制 plist。";
+        return @"如果你想用一个便携文件代替一整个 PNG 文件夹，可以用二进制 plist。";
     }
     return nil;
 }
@@ -3687,21 +3687,21 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
         cell.textLabel.text = @"PNG 文件";
         cell.detailTextLabel.text =
-            @"创建一个文件夹，包含以应用 Bundle ID 命名的 PNG 文件：\n"
+            @"创建一个文件夹，放入以 App 包名 ID 命名的 PNG 文件：\n"
              "com.apple.mobilesafari.png\n"
              "com.apple.MobileSMS.png\n"
              "com.apple.mobiletimer.png";
     } else if (indexPath.section == 1) {
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
-        cell.textLabel.text = @"Bundle ID → PNG 数据";
+        cell.textLabel.text = @"包名 ID → PNG 数据";
         cell.detailTextLabel.text =
-            @"创建一个字典 plist。每个键是一个 Bundle ID。每个值是原始 PNG 数据。 "
+            @"创建一个字典 plist。每个键是一个包名 ID，每个值是原版 PNG 数据。 "
              "Cyanide 会导入该 plist 并将其复制到 Documents/Themes 中。";
     } else {
         cell.selectionStyle = UITableViewCellSelectionStyleDefault;
         if (indexPath.row == 0) {
             cell.textLabel.text = @"分享示例主题 Plist";
-            cell.detailTextLabel.text = @"导出一个包含示例 Bundle ID 的小型二进制 plist 模板。";
+            cell.detailTextLabel.text = @"导出一份轻量二进制 plist 模板，内含示例包名 ID。";
         } else if (indexPath.row == 1) {
             cell.textLabel.text = @"分享 iOS 6 主题 Plist";
             cell.detailTextLabel.text = @"导出 iOS 6 主题 plist。图标来自 zagnut531/iOS-6-Icons。";
@@ -4056,7 +4056,7 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
     [icon setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
 
     UILabel *label = [[UILabel alloc] init];
-    label.text = @"Cyanide 是一个受限的调整环境——所有调整仅本次生效，重启后恢复。像 StatBar 和 Axon Lite 这类实时调整，如果你从 App 切换器强关 Cyanide，它们也会跟着停掉。应用调整时会自动弹出进度日志，点“隐藏”即可关闭。";
+    label.text = @"Cyanide 是一个受限的调整环境——所有调整仅本次生效，重启后恢复。像 StatBar 和 Axon Lite 这类实时调整，如果你从 App 切换器强制关闭 Cyanide，它们也会随之停止。应用调整时会自动弹出进度日志，点“隐藏”即可关闭。";
     label.textColor = UIColor.labelColor;
     label.font = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
     label.numberOfLines = 0;
@@ -4086,7 +4086,7 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
         @{ @"key": kSettingsAutoRunKexploit,    @"title": @"自动运行漏洞" },
         @{ @"key": kSettingsRunSandboxEscape,   @"title": @"沙盒逃逸" },
         @{ @"key": kSettingsKeepAlive,          @"title": @"保持应用存活",
-           @"subtitle": @"应用驱动的实时插件在最小化时仍需持续运行所必需，包括 StatBar 接收实时数据。" },
+           @"subtitle": @"供 App 驱动的实时调整在最小化后保持运行所需，包括 StatBar 持续接收新的实时数据。" },
     ];
 }
 
@@ -4108,7 +4108,7 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
 - (NSArray<NSDictionary *> *)powercuffRows
 {
     return @[
-        @{ @"kind": @"segmented", @"key": kSettingsPowercuffLevel,   @"title": @"级别" },
+        @{ @"kind": @"segmented", @"key": kSettingsPowercuffLevel,   @"title": @"档位" },
     ];
 }
 
@@ -4126,7 +4126,7 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
         @{ @"kind": @"stepper",
            @"key": kSettingsNanoMaxPairing,
            @"title": @"watchOS 配对上限",
-           @"subtitle": @"这台 iPhone 能接受的最高 watchOS 配对代数。99 会提高手机端对新 watchOS 版本的上限。",
+           @"subtitle": @"本机 iPhone 可接受的最高 watchOS 配对代数。设为 99 可抬高手机端上限，以兼容更新的 watchOS 版本。",
            @"min": @(kNanoUIRowMin),
            @"max": @(kNanoUIRowMax),
            @"default": @(kNanoDefaultMaxPairing) },
@@ -4134,7 +4134,7 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
         @{ @"kind": @"stepper",
            @"key": kSettingsNanoMinPairing,
            @"title": @"设置协议下限",
-           @"subtitle": @"这台 iPhone 能接受的最低配对设置代数。请保持为 23，以免拒绝第 23 代的设置消息。",
+           @"subtitle": @"这台 iPhone 能接受的最低配对设置代数。保持为 23，以免代数 23 的设置消息被拒绝。",
            @"min": @(kNanoUIRowMin),
            @"max": @(kNanoUIRowMax),
            @"default": @(kNanoDefaultMinPairing) },
@@ -4239,7 +4239,7 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
     NSMutableArray<NSDictionary *> *rows = [NSMutableArray arrayWithArray:@[
         @{ @"kind": @"info",
            @"title": @"已选主题",
-           @"subtitle": hasSelection ? selected : @"未选择任何主题。请在运行 Cyanide Themer 之前选择一个主题。" },
+           @"subtitle": hasSelection ? selected : @"未选择任何主题。请在运行 Cyanide 主题之前选择一个主题。" },
 
         @{ @"kind": @"button",
            @"title": [selected isEqualToString:@"iOS 6 主题"]
@@ -4294,7 +4294,7 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
         NSString *lvl = [d stringForKey:kSettingsPowercuffLevel] ?: @"nominal";
         NSDictionary *map = @{@"off":@"关闭", @"nominal":@"标准", @"light":@"轻度", @"moderate":@"中度", @"heavy":@"重度"};
         NSString *display = map[lvl] ?: lvl;
-        [out addObject:@{@"title": @"级别", @"value": display}];
+        [out addObject:@{@"title": @"档位", @"value": display}];
     } else if (section == SectionNanoRegistry) {
         [out addObject:@{@"title": @"watchOS 上限",      @"value": [@([d integerForKey:kSettingsNanoMaxPairing])       stringValue]}];
         [out addObject:@{@"title": @"设置下限",        @"value": [@([d integerForKey:kSettingsNanoMinPairing])       stringValue]}];
@@ -4335,7 +4335,7 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
 {
     return @[
         @{ @"title": @"启动选项",     @"icon": @"bolt.fill",                          @"color": [UIColor systemRedColor],    @"section": @(SectionLaunch) },
-        @{ @"title": @"SBCustomizer",       @"icon": @"square.grid.3x3.fill",                @"color": [UIColor systemBlueColor],   @"section": @(SectionSBC) },
+        @{ @"title": @"主屏幕定制器",       @"icon": @"square.grid.3x3.fill",                @"color": [UIColor systemBlueColor],   @"section": @(SectionSBC) },
         @{ @"title": @"StatBar",            @"icon": @"thermometer.medium",                  @"color": [UIColor systemRedColor],    @"section": @(SectionStatBar) },
         @{ @"title": @"信号强度显示",     @"icon": @"antenna.radiowaves.left.and.right",   @"color": [UIColor systemBlueColor],   @"section": @(SectionRSSI), @"experimental": @YES },
         @{ @"title": @"Axon Lite",          @"icon": @"bell.badge.fill",                     @"color": [UIColor systemRedColor],    @"section": @(SectionAxonLite) },
@@ -4445,24 +4445,24 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
     }
     NSInteger s = self.underlyingSection;
     if (s == SectionLaunch) {
-        return @"“沙盒逃逸”每次启动只运行一次。保活仅在 Cyanide 最小化时生效；从 App 切换器强关仍会终止进程。";
+        return @"kexploit_opa334 每次启动仅运行一次。保活仅在 Cyanide 最小化时生效；从 App 切换器强制关闭仍会终止进程。";
     }
     if (s == SectionSBC) {
         return [NSString stringWithFormat:@"原生 iOS 默认值：dock栏 %ld，列数 %ld，行数 %ld。",
                 (long)kSBCDefaultDockIcons, (long)kSBCDefaultCols, (long)kSBCDefaultRows];
     }
     if (s == SectionDarkSwordTweaks) {
-        return @"从 DarkSword-Tweaks 移植。这些均为 SpringBoard 运行时补丁；关闭某项仅会跳过后续应用，已生效的不受影响。";
+        return @"源自 DarkSword-Tweaks。这些是主屏幕运行时补丁，关闭开关仅跳过下次应用，已生效的保持不变。";
     }
     if (s == SectionLayoutExtras) {
         NSInteger major = [[NSProcessInfo processInfo] operatingSystemVersion].majorVersion;
         if (major >= 26) {
             return [NSString stringWithFormat:
-                @"在原生主屏幕/dock栏布局之上增加额外边距和图标缩放。\n\n"
+                @"在原生主屏幕或dock栏布局之上增加额外边距和图标缩放。\n\n"
                 @"当前运行在 iOS %ld：上游配置变更路径不存在（AMUIInfographIconListLayout 无可变配置），因此 iOS 26 改为遍历当前 SBIconListView/SBIconView 视图层级，直接调整 frame 与 iconImageInfo。每次仅运行一次；旋转屏幕、翻页等后续布局刷新可能触发 iOS 26 重新适配。",
                 (long)major];
         }
-        return @"在原生桌面与 Dock 布局之上，叠加额外间距和逐图标缩放。默认零间距、100% 缩放（即无变化）。开启开关并点“运行”生效；数值在注销后不保留。";
+        return @"在原生桌面或 Dock 布局之上，叠加额外间距和图标缩放。默认零间距、100% 缩放（即无变化）。开启开关并点“运行”生效；数值在注销后不保留。";
     }
     if (s == SectionOTA) {
         return @"修改 launchd 的 disabled.plist 文件。需要重启设备或用户空间重启才能生效。";
@@ -4474,22 +4474,26 @@ static _CyanideMailDelegate *_cyanide_mail_delegate(void) {
                @"99 会提高 watchOS 配对上限。23 保持第 23 代设置协议被接受。"
                @"10 和 6 将旧款芯片和多手表切换的下限保持在正常值。\n\n"
                @"Apple Watch Ultra 3 目前无法在低于 26 的 iOS 版本上配对。\n\n"
-               @"应用后请重启 SpringBoard 或设备，然后再尝试配对。";
+               @"应用后先注销或重启，再尝试配对。";
     }
     if (s == SectionPowercuff) {
-        return @"通过 thermalmonitord 模拟热压力来降低 CPU/GPU 频率。“标准”是日常使用的默认值。“轻度”“中度”和“重度”会主动降低 CPU 频率，可能会使设备感觉卡顿，尤其是在较旧的硬件上。";
+        return @"通过模拟热压力，借助温控守护进程对 CPU/GPU 降频。标准为日常使用默认档。轻度、中度、重度会刻意加大降频幅度，可能使设备变卡，老机型尤为明显。";
     }
     if (s == SectionStatBar) {
-        return @"实时叠加层。开启后，StatBar 会维持一个 SpringBoard RemoteCall 会话，每秒刷新一次，直到手动关闭。";
+        return @"实时叠加层。开启后，StatBar 会维持一个主屏幕 RemoteCall 通道，每秒刷新一次，直到手动关闭。";
     }
     if (s == SectionRSSI) {
-        return @"在每个 STUI 信号视图旁添加一个 UILabel（不创建新 UIWindow），每秒刷新一次。蜂窝网络显示实时 RSRP dBm（隐含负号）。Wi-Fi 显示信号格数（0-4）；之前的 wifid XPC dBm 路径会导致 SpringBoard 崩溃。";
+        return @"在每个 STUI 信号视图旁添加一个 UILabel 作为同级视图（不创建新的 UIWindow），每秒刷新一次。蜂窝网络显示实时 RSRP dBm（隐式带符号）。WiFi 显示信号格数（0-4）；在之前的测试中，通过 wifid XPC 获取 dBm 的路径导致主屏幕崩溃。";
     }
     if (s == SectionAxonLite) {
-        return @"纯 RemoteCall 方式移植的 Axon。通过 App 端实时循环工作，而非 Substrate 钩子，因此仅在 Cyanide 与 SpringBoard 会话活跃期间持续生效。";
+        return @"纯 RemoteCall 方式移植的 Axon。它靠 App 端实时循环驱动，不依赖底层 Hook 框架，因此只在 Cyanide 主屏幕通道活跃期间有效。";
     }
     if (s == SectionTypeBanner) {
-        return @"部分移植的 TypeMillennium。检测通过 RemoteCall 在消息应用自身的视图层级上运行，并且仅在消息应用运行时触发。原版系统级 imagent 钩子需要代码注入，在此环境中不可用。";
+        return @"TypeMillennium 部分移植版。检测用原版线程 RemoteCall 探针直接探测 imagent，同时主屏幕渲染已预热的横幅窗口。";
+    }
+    if (s == SectionThemer) {
+        return @"运行 Cyanide 主题前请先选取一个主题。\n\n"
+               @"自定义主题可以是一个以包名 ID 命名的 PNG 文件夹（如 com.apple.mobilesafari.png），也可以是一个将包名 ID 映射到 PNG 数据的二进制 plist。导入会将主题复制到 Cyanide 的 Documents/Themes 文件夹中。主题格式指南包含示例和 plist 导出。";
     }
     return nil;
 }
@@ -4821,7 +4825,7 @@ didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls
     if (scoped) [url stopAccessingSecurityScopedResource];
 
     if (!ok) {
-        NSString *msg = err.localizedDescription ?: @"请选择一个包含 bundleID.png 文件的文件夹，或一个将 bundle ID 映射到 PNG 数据的二进制 plist 文件。";
+        NSString *msg = err.localizedDescription ?: @"请选择一个包含 “包名 ID.png” 文件的文件夹，或一个将包名 ID 映射到 PNG 数据的二进制 plist 文件。";
         UIAlertController *ac = [UIAlertController alertControllerWithTitle:@"主题导入失败"
                                                                      message:msg
                                                               preferredStyle:UIAlertControllerStyleAlert];
@@ -5460,8 +5464,8 @@ void cyanide_present_contact(UIViewController *host)
                 detailColor = UIColor.secondaryLabelColor;
             } else {
                 detailText = cleanupEnabled
-                    ? @"停止实时 SpringBoard 会话，暂存 KRW 套接字状态，并关闭本应用的本地 KRW 文件描述符。下次运行时会优先尝试 launchd 恢复。"
-                    : @"本地无 KRW 会话。";
+                    ? @"停止实时主屏幕通道，暂存 KRW socket 状态，并关闭本 App 的本地 KRW 文件描述符。下次运行时会优先尝试 launchd 恢复。"
+                    : @"本地无 KRW 通道。";
                 detailColor = cleanupEnabled ? UIColor.secondaryLabelColor : UIColor.tertiaryLabelColor;
             }
         } else if (indexPath.row == 1) {
@@ -5471,14 +5475,14 @@ void cyanide_present_contact(UIViewController *host)
             detailColor = supported ? UIColor.secondaryLabelColor : UIColor.tertiaryLabelColor;
         } else if (indexPath.row == 2) {
             detailText = anyInstalledOrQueued
-                ? @"卸载所有插件并清空待处理。已在本次会话中应用的 SpringBoard 补丁将保留，直到注销或重启。"
+                ? @"卸载所有插件并清空待处理。本次已应用的主屏幕补丁将保留，直到注销或重启。"
                 : @"没有已安装或待处理的插件。";
             detailColor = anyInstalledOrQueued ? UIColor.secondaryLabelColor : UIColor.tertiaryLabelColor;
         } else if (indexPath.row == 3) {
             detailText  = @"向 GitHub 查询最新版本。如果启动提示未出现，请运行此项。";
             detailColor = UIColor.secondaryLabelColor;
         } else if (indexPath.row == 4) {
-            detailText  = @"开发中 —— 仍会过度关闭后台服务。在过滤逻辑完善前已禁用。";
+            detailText  = @"开发中 —— 仍会过度终止后台服务。待过滤规则调好后再启用。";
             detailColor = UIColor.tertiaryLabelColor;
         }
         if (detailText) {
@@ -5907,7 +5911,7 @@ void cyanide_present_contact(UIViewController *host)
         if (indexPath.row == 0) {
             UIAlertController *ac = [UIAlertController
                 alertControllerWithTitle:@"清理？"
-                                 message:@"这是一个针对当前应用侧 KRW 会话的终端清理操作。它会停止实时 SpringBoard 插件会话，暂存 KRW 套接字状态，关闭 Cyanide 的本地 KRW 文件描述符，并清除应用内的漏洞利用缓存。下次运行时将优先尝试 launchd KRW 恢复；如果不可用，则运行完整链。"
+                                 message:@"这是当前 App 端 KRW 通道的最终清理。它会停止实时主屏幕调整通道，暂存 KRW socket 状态，关闭 Cyanide 的本地 KRW 文件描述符，并清空 App 内漏洞利用缓存。下次运行会先尝试通过 launchd 恢复 KRW；如果不可用，则会重新运行完整链。"
                           preferredStyle:UIAlertControllerStyleAlert];
             [ac addAction:[UIAlertAction actionWithTitle:@"取消"
                                                    style:UIAlertActionStyleCancel
@@ -5957,7 +5961,7 @@ void cyanide_present_contact(UIViewController *host)
         } else if (indexPath.row == 2) {
             UIAlertController *ac = [UIAlertController
                 alertControllerWithTitle:@"重置插件配置？"
-                                 message:@"这将卸载所有插件并清空待处理。已在本次会话中应用的 SpringBoard 补丁将保留，直到注销或重启。\n\n这不会影响您的运行选项、Powercuff 级别、SBCustomizer 网格或其他插件设置 —— 仅影响安装状态。"
+                                 message:@"这将卸载所有插件并清空待处理。下次链运行将从干净状态全新开始。本次已生效的主屏幕补丁将保留，直到注销或重启。\n\n这不会影响您的运行选项、Powercuff 档位、主屏幕定制器网格或其他插件设置 —— 仅重置安装状态。"
                           preferredStyle:UIAlertControllerStyleAlert];
             [ac addAction:[UIAlertAction actionWithTitle:@"取消"
                                                    style:UIAlertActionStyleCancel
@@ -5988,7 +5992,7 @@ void cyanide_present_contact(UIViewController *host)
             }
             UIAlertController *ac = [UIAlertController
                 alertControllerWithTitle:@"关闭后台应用？"
-                                 message:@"这将要求 SpringBoard 终止除 Cyanide 之外的所有正在运行的应用，就像在 App 切换器中全部划掉一样。\n\n未保存工作的应用可能会丢失数据。SpringBoard 和锁定屏幕进程将被跳过。"
+                                 message:@"这会请求主屏幕终止除 Cyanide 之外所有正在运行的 App，就像从 App 切换器中把它们全部上滑清掉。\n\n有未保存内容的 App 可能会丢失数据。主屏幕和锁屏进程不会被终止。"
                           preferredStyle:UIAlertControllerStyleAlert];
             [ac addAction:[UIAlertAction actionWithTitle:@"取消"
                                                    style:UIAlertActionStyleCancel
@@ -6060,7 +6064,7 @@ void cyanide_present_contact(UIViewController *host)
         } else if ([action isEqualToString:@"nano-apply"]) {
             UIAlertController *ac = [UIAlertController
                 alertControllerWithTitle:@"应用配对覆盖设置？"
-                                 message:@"将这些 watchOS 配对设置保存到这台 iPhone。应用后请重启 SpringBoard 或设备，然后再尝试配对。"
+                                 message:@"将 watchOS 配对设置保存在本 iPhone 上。之后请注销或重启，再尝试配对。"
                           preferredStyle:UIAlertControllerStyleAlert];
             [ac addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
             [ac addAction:[UIAlertAction actionWithTitle:@"应用" style:UIAlertActionStyleDefault handler:^(UIAlertAction *_) {
@@ -6074,7 +6078,7 @@ void cyanide_present_contact(UIViewController *host)
         } else if ([action isEqualToString:@"nano-seed"]) {
             UIAlertController *ac = [UIAlertController
                 alertControllerWithTitle:@"写入兼容性索引？"
-                                 message:@"将此手机的产品类型添加到本地 NanoRegistry 兼容性索引 MobileAsset 中，并在原文件旁保存一份 .cyanide.bak 备份。"
+                                 message:@"将本机产品类型添加到本地 NanoRegistry 兼容性索引 MobileAsset 中，并在原文件旁保存一份 .cyanide.bak 备份。"
                           preferredStyle:UIAlertControllerStyleAlert];
             [ac addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
             [ac addAction:[UIAlertAction actionWithTitle:@"写入" style:UIAlertActionStyleDefault handler:^(UIAlertAction *_) {
@@ -6084,7 +6088,7 @@ void cyanide_present_contact(UIViewController *host)
         } else if ([action isEqualToString:@"nano-clear"]) {
             UIAlertController *ac = [UIAlertController
                 alertControllerWithTitle:@"移除配对覆盖设置？"
-                                 message:@"移除已保存的手表配对覆盖设置，不会影响其他手表数据。之后请重启 SpringBoard 或设备。"
+                                 message:@"移除已保存的 Watch 配对覆盖，不影响其余手表数据。之后请注销或重启。"
                           preferredStyle:UIAlertControllerStyleAlert];
             [ac addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
             [ac addAction:[UIAlertAction actionWithTitle:@"移除" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *_) {
