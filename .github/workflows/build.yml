@@ -24,12 +24,6 @@ jobs:
       - name: show xcode version
         run: xcodebuild -version
 
-      - name: generate changelog
-        run: |
-          brew install bash
-          chmod +x scripts/gen-changelog.sh
-          /opt/homebrew/bin/bash scripts/gen-changelog.sh
-
       - name: build
         run: |
           chmod +x scripts/build.sh
