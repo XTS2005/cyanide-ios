@@ -78,15 +78,29 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="${{ steps.version.outputs.tag }}"
+          IPA_FILE="${{ steps.version.outputs.ipa }}"
           
+          # 删除 release 中所有旧的 .ipa 文件
+          echo "Cleaning up old IPA assets..."
+          for asset in $(gh release view nightly --json assets -q '.assets[].name | select(contains(".ipa"))' 2>/dev/null); do
+            echo "Deleting: $asset"
+            gh release delete-asset nightly "$asset" --yes || true
+          done
+          
+          # 创建或更新 nightly release
           gh release view nightly >/dev/null 2>&1 || \
           gh release create nightly \
             --title "${TAG_NAME}" \
             --notes "initial nightly" \
             --draft=false
-
+          
+          # 更新 release 信息
           gh release edit nightly \
             --title "${TAG_NAME}" \
             --notes-file release_notes.txt
-
-          gh release upload nightly ${{ steps.version.outputs.ipa }} --clobber
+          
+          # 上传新的 IPA
+          echo "Uploading: $IPA_FILE"
+          gh release upload nightly "$IPA_FILE" --clobber
+          
+          echo "Done! Only one IPA file is kept."
