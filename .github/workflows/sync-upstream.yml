@@ -1,4 +1,4 @@
-name: Sync Upstream Tags (Keep Latest 5)
+name: Sync Upstream Tags (Keep Latest 5 + Nightly)
 
 on:
   workflow_dispatch:
@@ -23,15 +23,20 @@ jobs:
       - name: Fetch upstream tags
         run: git fetch upstream --tags
 
-      - name: Keep latest 5 tags, delete others
+      - name: Keep latest 5 version tags + nightly, delete others
         run: |
-          # 获取上游最新的 5 个 tags
+          # 获取上游最新的 5 个正式版本 tags（v1.2.3 格式）
           git ls-remote --tags upstream | \
             awk -F'/' '{print $3}' | \
             sed 's/\^{}//' | \
             grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | \
             sort -Vr | \
             head -5 > keep.txt
+          
+          # 把 nightly 加入保留列表（如果存在）
+          if git rev-parse -q --verify "refs/tags/nightly" >/dev/null; then
+            echo "nightly" >> keep.txt
+          fi
           
           echo "=== Tags to keep ==="
           cat keep.txt
@@ -45,8 +50,8 @@ jobs:
             fi
           done
           
-          # 添加 keep 列表中本地没有的 tags
-          for tag in $(cat keep.txt); do
+          # 添加 keep 列表中本地没有的正式版本 tags
+          for tag in $(grep -E '^v[0-9]' keep.txt); do
             if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
               echo "Adding: $tag"
               git fetch upstream "refs/tags/$tag:refs/tags/$tag"
@@ -60,3 +65,5 @@ jobs:
         run: |
           echo "=== Final tags ==="
           git tag --sort=-v:refname
+          echo ""
+          echo "Total tags: $(git tag | wc -l)"
