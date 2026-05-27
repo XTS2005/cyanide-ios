@@ -24,6 +24,12 @@ jobs:
       - name: show xcode version
         run: xcodebuild -version
 
+      - name: generate changelog
+        run: |
+          brew install bash
+          chmod +x scripts/gen-changelog.sh
+          /opt/homebrew/bin/bash scripts/gen-changelog.sh
+
       - name: build
         run: |
           chmod +x scripts/build.sh
@@ -36,7 +42,6 @@ jobs:
           name: cyanide-ipa
           path: |
             build/Cyanide.ipa
-            build/xcodebuild.log
 
       - name: upload release ipa
         if: github.event_name != 'pull_request'
@@ -91,7 +96,8 @@ jobs:
           gh release create nightly \
             --title "Nightly" \
             --notes "initial nightly" \
-            --prerelease
+            --prerelease \
+            --draft=false
       
           gh release edit nightly \
             --title "Nightly" \
