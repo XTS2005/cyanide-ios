@@ -38,11 +38,6 @@ jobs:
             sort -Vr | \
             head -5 > keep.txt
           
-          # 把 nightly 加入保留列表（如果存在）
-          if git rev-parse -q --verify "refs/tags/nightly" >/dev/null; then
-            echo "nightly" >> keep.txt
-          fi
-          
           echo "=== 将保留的 Tags ==="
           cat keep.txt
           
@@ -56,7 +51,7 @@ jobs:
           done
           
           # 添加保留列表中本地没有的正式版本 tags
-          for tag in $(grep -E '^v[0-9]' keep.txt); do
+          for tag in $(cat keep.txt); do
             if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
               echo "添加: $tag"
               git fetch upstream "refs/tags/$tag:refs/tags/$tag"
@@ -137,12 +132,19 @@ jobs:
             gh release delete-asset nightly "$asset" --yes || true
           done
           
-          # 创建或更新 nightly release
+          # 删除本地已存在的 nightly tag（避免冲突）
+          if git rev-parse -q --verify "refs/tags/nightly" >/dev/null; then
+            echo "删除本地 nightly tag"
+            git tag -d nightly
+          fi
+          
+          # 创建或更新 nightly release（使用 --target 指定分支）
           gh release view nightly >/dev/null 2>&1 || \
           gh release create nightly \
             --title "${TAG_NAME}" \
             --notes "初始每日构建" \
-            --draft=false
+            --draft=false \
+            --target main
           
           # 更新 release 信息
           gh release edit nightly \
