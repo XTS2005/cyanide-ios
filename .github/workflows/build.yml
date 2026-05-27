@@ -14,7 +14,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 需要完整历史来获取 tags
+          fetch-depth: 0
 
       - name: setup xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -24,7 +24,11 @@ jobs:
       - name: show xcode version
         run: xcodebuild -version
 
+      - name: install bash 5
+        run: brew install bash
+
       - name: generate changelog
+        shell: /usr/local/bin/bash {0}
         run: |
           chmod +x scripts/gen-changelog.sh
           ./scripts/gen-changelog.sh
