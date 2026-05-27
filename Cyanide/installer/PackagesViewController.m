@@ -122,7 +122,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
         @{ @"icon":  @"wand.and.stars",
            @"color": UIColor.systemPurpleColor,
            @"title": @"更新内容",
-           @"body":  @"• 主屏幕布局扩展 — 主屏幕网格和程序坞的额外边距和图标缩放\n• StatBar 新增 CPU% 显示和精简的 KB/MB 网络速度\n• 设置 → 快速操作中新增手动检查更新按钮\n• 更流畅的重启 SpringBoard 覆盖层" },
+           @"body":  @"• 主屏幕布局扩展 — 主屏幕网格和程序坞的额外边距和图标缩放\n• StatBar 新增 CPU% 显示和精简的 KB/MB 网络速度\n• 设置 → 快速操作中新增手动检查更新按钮\n• 注销时更丝滑的过渡画面" },
         @{ @"icon":  @"exclamationmark.triangle.fill",
            @"color": UIColor.systemOrangeColor,
            @"title": @"请勿强制退出 Cyanide",

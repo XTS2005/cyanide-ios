@@ -206,7 +206,7 @@ typedef NS_ENUM(NSInteger, QueueReviewSection) {
 {
     if ((QueueReviewSection)section != QueueReviewSectionReApply) return nil;
     if ([self reApplyPackages].count == 0) return nil;
-    return @"这些是已安装的包，不是新的待处理更改。确认后会重新运行链，以便已安装的 RemoteCall 插件在强制退出后恢复。如果想停止某个插件运行，请从安装器标签页中卸载它，或在“设置”→“快速操作”中使用“重置所有包”。";
+    return @"这些是已安装的包，不是新的待处理更改。确认后会重新运行链，以便已安装的 RemoteCall 插件在强制退出后恢复。如果想停止某个插件运行，请从安装器标签页中卸载它，或在“设置”→“快速操作”中使用“重置插件配置”。";
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath

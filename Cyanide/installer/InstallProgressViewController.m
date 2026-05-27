@@ -108,7 +108,7 @@
     NSString *message = note.userInfo[kSettingsActionsDidCompleteMessageKey];
     self.statusLabel.text = message.length
         ? message
-        : (success ? @"完成。所有插件已在会话中应用。" : @"失败。请查看日志了解详情。");
+        : (success ? @"完成。所有插件已在本次生效。" : @"失败。请查看日志了解详情。");
     self.statusLabel.textColor = success
         ? [UIColor colorWithRed:0.45 green:0.85 blue:0.55 alpha:1.0]
         : [UIColor colorWithRed:1.0 green:0.42 blue:0.35 alpha:1.0];

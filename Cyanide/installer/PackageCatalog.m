@@ -70,9 +70,9 @@ static const NSInteger kSecThemer       = 13;
         signal.unstableWarning = @"⚠️ 实验性功能：开发中，可能完全无法正常工作。实时状态栏刷新会干扰其他主屏幕插件，并可能导致读数完全丢失。开启此项只会增加风险，不保证有任何可用功能。";
 
         Package *sbc = [[Package alloc] initWithIdentifier:@"com.darksword.sbcustomizer"
-                                           name:@"SBCustomizer"
-                               shortDescription:@"自定义程序坞图标数和主屏幕网格"
-                                longDescription:@"自定义程序坞图标数量以及主屏幕图标的网格（列数和行数）。可选择隐藏图标标签。\n\n在“设置”标签页中调整各轴数量和标签隐藏开关。"
+                                           name:@"主屏幕定制器"
+                               shortDescription:@"自定义Dock栏图标数和主屏幕网格"
+                                longDescription:@"自定义Dock栏图标数量以及主屏幕图标的网格（列数和行数）。可选择隐藏图标标签。\n\n在“设置”标签页中调整各轴数量和标签隐藏开关。"
                                         version:version
                                          author:@"zeroxjf"
                                        category:@"主屏幕布局"
@@ -85,7 +85,7 @@ static const NSInteger kSecThemer       = 13;
         Package *powercuff = [[Package alloc] initWithIdentifier:@"com.darksword.powercuff"
                                            name:@"Powercuff"
                                shortDescription:@"通过模拟热压力降低 CPU/GPU 频率"
-                                longDescription:@"通过模拟热压力驱动 thermalmonitord 来降低 CPU 和 GPU 频率。适用于对散热敏感的工作负载或在负载下延长运行时间。效果持续到重启。\n\nNominal 是日常使用的默认值。Light、Moderate 和 Heavy 档会主动降低 CPU 频率，因此卡顿和应用启动变慢恰恰说明它正在正常工作。这些档位对于日常舒适使用来说可能太慢，尤其是在较旧的设备上。\n\n在“设置”标签页中选择级别。"
+                                longDescription:@"通过模拟热压力驱动 thermalmonitord 来降低 CPU 和 GPU 频率。适用于对散热敏感的工作负载或在负载下延长运行时间。效果持续到重启。\n\nNominal 是日常使用的默认值。Light、Moderate 和 Heavy 档会主动降低 CPU 频率，因此卡顿和应用启动变慢恰恰说明它正在正常工作。这些档位对于日常舒适使用来说可能太慢，尤其是在较旧的设备上。\n\n在“设置”标签页中选择档位。"
                                         version:version
                                          author:@"rpetrich"
                                        category:@"性能"
@@ -97,8 +97,8 @@ static const NSInteger kSecThemer       = 13;
 
         Package *axon = [[Package alloc] initWithIdentifier:@"com.darksword.axonlite"
                                            name:@"Axon Lite"
-                               shortDescription:@"按应用分组通知中心请求"
-                                longDescription:@"在 SpringBoard 覆盖层中按应用分组显示可见的通知中心请求，并在 Cyanide 保持 RemoteCall 会话存活期间过滤重复通知。\n\n无需额外配置。"
+                               shortDescription:@"按 App 分组通知中心请求"
+                                longDescription:@"在主屏幕叠加层中按 App 分组显示通知中心请求，并过滤重复项，同时 Cyanide 保持 RemoteCall 通道活跃。\n\n无需额外配置。"
                                         version:version
                                          author:@"zeroxjf"
                                        category:@"测试版"
@@ -106,12 +106,12 @@ static const NSInteger kSecThemer       = 13;
                                            kind:PackageInstallKindToggle
                                      enabledKey:kSettingsAxonLiteEnabled
                                           isNew:YES];
-        axon.unstableWarning = @"严重缺陷的开发中版本。可能会出现 SpringBoard 崩溃、通知丢失、布局错乱以及 Cyanide 构建之间的兼容性问题。请不要依赖它处理重要事务。";
+        axon.unstableWarning = @"⚠️ 实验性：开发中。可能会出现主屏幕崩溃、通知丢失、布局错乱，以及不同 Cyanide 版本间的不兼容。重要用途请勿依赖此功能。";
 
         Package *typeBanner = [[Package alloc] initWithIdentifier:@"com.darksword.typebanner"
                                             name:@"TypeBanner"
                                shortDescription:@"灵动岛下方的 iMessage 输入提示横幅"
-                                longDescription:@"TypeMillennium 的移植版。当活跃的消息对话列表显示输入提示时，在灵动岛正下方显示一个药丸横幅。\n\nv1 限制：检测通过 RemoteCall 针对消息应用自身的视图层级运行，因此仅在消息应用运行时触发。原插件的系统级 imagent 钩子需要代码注入，在此沙盒环境中无法实现。\n\n无需额外配置。"
+                                longDescription:@"TypeMillennium 移植版。当活跃的“信息”对话列表显示正在输入指示器时，在灵动岛正下方弹出一个药丸形横幅。\n\nv1 限制：检测通过 RemoteCall 针对“信息”App 自身的视图层级进行，因此仅在“信息”App 运行时触发。原版调整的系统级 imagent Hook 需要代码注入，而在此沙盒环境中，没有代码签名绕过便无法实现。\n\n无需额外配置。"
                                         version:version
                                          author:@"zeroxjf"
                                        category:@"实验性"
@@ -125,7 +125,7 @@ static const NSInteger kSecThemer       = 13;
         Package *themer = [[Package alloc] initWithIdentifier:@"com.darksword.themer"
                                            name:@"Cyanide 主题"
                                shortDescription:@"按应用包名换图标的主题"
-                                longDescription:@"通过遍历 SpringBoard 的 SBIconView 层级，将每个应用的图标替换为匹配其包名的 PNG 图片，从而实现自定义应用图标。\n\n在“设置”→“Cyanide 主题”中选择一个主题。Cyanide 内置了 iOS 6 主题，使用了 zagnut531/iOS-6-Icons 的图标：https://github.com/zagnut531/iOS-6-Icons。您也可以导入包含 <bundleID>.png 文件的文件夹，或一个将 bundle ID 映射到 PNG 数据的二进制 plist 文件。\n\n在“运行”时应用；重启 SpringBoard 后不会保留。当前版本还会预置 SpringBoard 的图标缓存，并在上传前对导入的 PNG 进行圆角处理，使图标在常见的主屏幕重新布局后更稳定。"
+                                longDescription:@"遍历主屏幕的 SBIconView 视图层级，将每个图标替换为与 App 包名 ID 匹配的 PNG，以此替换原生图标。\n\n在“设置”>“Cyanide Themer”中选择主题。Cyanide 内置 iOS 6 主题，图标源自 zagnut531/iOS-6-Icons：https://github.com/zagnut531/iOS-6-Icons。你也可导入自定义的 <包名ID>.png 文件夹，或将包名 ID 映射到 PNG 数据的二进制 plist。\n\n点“运行”生效，注销后不保留。当前版本还会预填主屏幕图标缓存，并在上传前对导入的 PNG 做圆角处理，让图标在主屏幕重新布局时更稳定地保留。"
                                         version:version
                                          author:@"zeroxjf"
                                        category:@"测试版"
@@ -139,8 +139,8 @@ static const NSInteger kSecThemer       = 13;
 
         Package *layoutExtras = [[Package alloc] initWithIdentifier:@"com.darksword.layoutextras"
                                            name:@"主屏幕布局扩展"
-                               shortDescription:@"主屏幕/dock栏额外边距和图标缩放"
-                                longDescription:@"在主屏幕网格和程序坞周围添加额外边距，并缩放图标大小。叠加在 SBCustomizer 之上。\n\n在“设置”标签页中调整主屏幕左/右/上/下边距、程序坞水平边距以及主屏幕/程序坞图标缩放。默认值与原生相同（零边距，100% 缩放）。\n\n在“运行”时应用；重启 SpringBoard 后不会保留。\n\niOS 18：直接修改 SBIconController 布局配置。\niOS 26：遍历当前的 SBIconListView/SBIconView 层级并直接调整每个图标的 frame + iconImageInfo（iOS 26 的布局类是只读的）。在 iOS 26 上仅在“运行”时一次性应用 — 旋转屏幕或翻页可能会触发 iOS 26 的自动布局重新调整，届时请重新运行。"
+                               shortDescription:@"主屏幕与Dock栏额外边距和图标缩放"
+                                longDescription:@"在主屏幕网格或 Dock 栏周围添加额外间距，并可缩放图标大小。叠加在主屏幕定制器之上。\n\n在“设置”标签页中调整主屏幕左/右/上/下边距、Dock 栏水平边距以及主屏幕/Dock 栏图标缩放。默认值与原生相同（零边距，100% 缩放）。\n\n点“运行”生效；注销后不会保留。\n\niOS 18：直接修改 SBIconController 布局配置（上游 kolbicz 路径）。\niOS 26：遍历当前 SBIconListView/SBIconView 视图层级，逐图标调整 frame 与 iconImageInfo（iOS 26 布局类为只读）。iOS 26 上点“运行”仅生效一次——旋转屏幕或翻页可能触发 iOS 26 自动布局重新适配，如遇此情况请重新点“运行”。"
                                         version:version
                                          author:@"kolbicz"
                                        category:@"主屏幕布局"
@@ -207,7 +207,7 @@ static const NSInteger kSecThemer       = 13;
 
             [[Package alloc] initWithIdentifier:@"com.darksword.zero-backlight-fade"
                                            name:@"取消熄屏动画"
-                               shortDescription:@"锁定/解锁时背光瞬间切换"
+                               shortDescription:@"锁定或解锁时背光瞬间切换"
                                 longDescription:@"将背光淡入淡出持续时间减少到零，锁定和解锁时显示屏立即开关。"
                                         version:version
                                          author:@"kolbicz"
