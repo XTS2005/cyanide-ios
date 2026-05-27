@@ -24,18 +24,11 @@ jobs:
       - name: show xcode version
         run: xcodebuild -version
 
-      - name: install bash 5
-        run: |
-          brew install bash
-          which bash
-          brew --prefix bash
-
       - name: generate changelog
         run: |
-          BASH5=$(brew --prefix bash)/bin/bash
-          $BASH5 --version
+          brew install bash
           chmod +x scripts/gen-changelog.sh
-          $BASH5 ./scripts/gen-changelog.sh
+          /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       - name: build
         run: |
