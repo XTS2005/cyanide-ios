@@ -13,25 +13,23 @@ permissions:
   contents: write
 
 jobs:
-  # 同步上游 Tags 的任务（可选）
-  sync-tags:
-    if: github.event.inputs.sync_upstream_first == 'true'
-    runs-on: ubuntu-latest
+  build:
+    runs-on: macos-latest
+    
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 添加上游仓库
-        run: git remote add upstream https://github.com/zeroxjf/cyanide-ios.git
-
-      - name: 拉取上游 Tags
-        run: git fetch upstream --tags
-
-      - name: 只保留最新 5 个正式版 Tags + nightly
+      # 可选：同步上游 Tags
+      - name: 同步上游 Tags（勾选时执行）
+        if: github.event.inputs.sync_upstream_first == 'true'
         run: |
+          echo "=== 同步上游 Tags ==="
+          git remote add upstream https://github.com/zeroxjf/cyanide-ios.git
+          git fetch upstream --tags
+          
           # 获取上游最新的 5 个正式版本 tags
           git ls-remote --tags upstream | \
             awk -F'/' '{print $3}' | \
@@ -67,16 +65,6 @@ jobs:
           
           # 推送所有保留的 tags
           git push origin --tags --force
-
-  # 构建任务
-  build:
-    runs-on: macos-latest
-    needs: [sync-tags]  # 等待同步任务完成（如果勾选了的话）
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: 配置 Xcode
         uses: maxim-lobanov/setup-xcode@v1
