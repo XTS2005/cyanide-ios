@@ -27,13 +27,15 @@ jobs:
       - name: install bash 5
         run: |
           brew install bash
-          echo "/usr/local/bin" >> $GITHUB_PATH
+          which bash
+          brew --prefix bash
 
       - name: generate changelog
         run: |
-          /usr/local/bin/bash --version
+          BASH5=$(brew --prefix bash)/bin/bash
+          $BASH5 --version
           chmod +x scripts/gen-changelog.sh
-          /usr/local/bin/bash ./scripts/gen-changelog.sh
+          $BASH5 ./scripts/gen-changelog.sh
 
       - name: build
         run: |
