@@ -25,13 +25,15 @@ jobs:
         run: xcodebuild -version
 
       - name: install bash 5
-        run: brew install bash
+        run: |
+          brew install bash
+          echo "/usr/local/bin" >> $GITHUB_PATH
 
       - name: generate changelog
-        shell: /usr/local/bin/bash {0}
         run: |
+          /usr/local/bin/bash --version
           chmod +x scripts/gen-changelog.sh
-          ./scripts/gen-changelog.sh
+          /usr/local/bin/bash ./scripts/gen-changelog.sh
 
       - name: build
         run: |
