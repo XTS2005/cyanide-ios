@@ -1,10 +1,10 @@
-name: build
+name: 构建
 
 on:
   workflow_dispatch:
     inputs:
       sync_upstream_first:
-        description: 'Sync upstream tags before build?'
+        description: '构建前先同步上游 Tags？'
         required: false
         type: boolean
         default: false
@@ -13,23 +13,24 @@ permissions:
   contents: write
 
 jobs:
+  # 同步上游 Tags 的任务（可选）
   sync-tags:
     if: github.event.inputs.sync_upstream_first == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: checkout
+      - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: add upstream remote
+      - name: 添加上游仓库
         run: git remote add upstream https://github.com/zeroxjf/cyanide-ios.git
 
-      - name: fetch upstream tags
+      - name: 拉取上游 Tags
         run: git fetch upstream --tags
 
-      - name: keep latest 5 version tags + nightly
+      - name: 只保留最新 5 个正式版 Tags + nightly
         run: |
           # 获取上游最新的 5 个正式版本 tags
           git ls-remote --tags upstream | \
@@ -44,22 +45,22 @@ jobs:
             echo "nightly" >> keep.txt
           fi
           
-          echo "=== Tags to keep ==="
+          echo "=== 将保留的 Tags ==="
           cat keep.txt
           
-          # 删除本地所有不在 keep 列表中的 tags
+          # 删除本地所有不在保留列表中的 tags
           for tag in $(git tag); do
             if ! grep -qxF "$tag" keep.txt; then
-              echo "Deleting: $tag"
+              echo "删除: $tag"
               git tag -d "$tag"
               git push origin --delete "$tag" || true
             fi
           done
           
-          # 添加 keep 列表中本地没有的正式版本 tags
+          # 添加保留列表中本地没有的正式版本 tags
           for tag in $(grep -E '^v[0-9]' keep.txt); do
             if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-              echo "Adding: $tag"
+              echo "添加: $tag"
               git fetch upstream "refs/tags/$tag:refs/tags/$tag"
             fi
           done
@@ -67,40 +68,42 @@ jobs:
           # 推送所有保留的 tags
           git push origin --tags --force
 
+  # 构建任务
   build:
     runs-on: macos-latest
-    needs: [sync-tags]
+    needs: [sync-tags]  # 等待同步任务完成（如果勾选了的话）
     steps:
-      - name: checkout
+      - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: setup xcode
+      - name: 配置 Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
-      - name: show xcode version
+      - name: 显示 Xcode 版本
         run: xcodebuild -version
 
-      - name: generate changelog
+      - name: 生成更新日志
         run: |
           brew install bash
           chmod +x scripts/gen-changelog.sh
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
-      - name: build
+      - name: 构建 IPA
         run: |
           chmod +x scripts/build.sh
           ./scripts/build.sh
 
-      - name: get IPA version and latest tag
+      - name: 获取 IPA 版本和最新 Tag
         id: version
         run: |
           IPA=$(ls build/Cyanide-*.ipa | head -1)
           VERSION=$(echo "$IPA" | sed -E 's/.*Cyanide-([0-9.]+)\.ipa/\1/')
           
+          # 获取最新的 tag
           LATEST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9.]+$' | head -1)
           if [ -z "$LATEST_TAG" ]; then
             LATEST_TAG="v${VERSION}"
@@ -110,29 +113,29 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           
-          echo "Latest tag: $LATEST_TAG"
+          echo "最新 Tag: $LATEST_TAG"
 
-      - name: get last 12h commits
+      - name: 获取最近 12 小时提交
         run: |
           COMMITS=$(git log --since="12 hours ago" --pretty=format:"- %h %s (%an)")
           if [ -z "$COMMITS" ]; then
-            COMMITS="no commits in the last 12 hours"
+            COMMITS="最近 12 小时没有新提交"
           fi
           echo "COMMITS<<EOF" >> $GITHUB_ENV
           echo "$COMMITS" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: write release notes
+      - name: 写入发布说明
         run: |
           cat <<EOF > release_notes.txt
-          Cyanide nightly build - ${{ steps.version.outputs.tag }}
+          Cyanide 每日构建 - ${{ steps.version.outputs.tag }}
           
-          Last 12 hours commits:
+          最近 12 小时提交：
           
           ${COMMITS}
           EOF
 
-      - name: update nightly release
+      - name: 更新每日构建 Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -140,9 +143,9 @@ jobs:
           IPA_FILE="${{ steps.version.outputs.ipa }}"
           
           # 删除 release 中所有旧的 .ipa 文件
-          echo "Cleaning up old IPA assets..."
+          echo "正在清理旧的 IPA 文件..."
           for asset in $(gh release view nightly --json assets -q '.assets[].name | select(contains(".ipa"))' 2>/dev/null); do
-            echo "Deleting: $asset"
+            echo "删除: $asset"
             gh release delete-asset nightly "$asset" --yes || true
           done
           
@@ -150,7 +153,7 @@ jobs:
           gh release view nightly >/dev/null 2>&1 || \
           gh release create nightly \
             --title "${TAG_NAME}" \
-            --notes "initial nightly" \
+            --notes "初始每日构建" \
             --draft=false
           
           # 更新 release 信息
@@ -159,7 +162,7 @@ jobs:
             --notes-file release_notes.txt
           
           # 上传新的 IPA
-          echo "Uploading: $IPA_FILE"
+          echo "上传: $IPA_FILE"
           gh release upload nightly "$IPA_FILE" --clobber
           
-          echo "Done! Only one IPA file is kept."
+          echo "完成！只保留了一个 IPA 文件。"
