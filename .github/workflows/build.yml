@@ -96,12 +96,10 @@ jobs:
           gh release create nightly \
             --title "Nightly" \
             --notes "initial nightly" \
-            --prerelease \
             --draft=false
       
           gh release edit nightly \
             --title "Nightly" \
             --notes-file release_notes.txt \
-            --prerelease
       
           gh release upload nightly build/Cyanide.ipa --clobber
