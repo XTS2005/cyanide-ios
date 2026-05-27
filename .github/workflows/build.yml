@@ -71,7 +71,7 @@ jobs:
   # 构建任务
   build:
     runs-on: macos-latest
-    needs: [sync-tags]  # 等待同步任务完成（如果勾选了的话）
+    needs: [sync-tags]
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -135,33 +135,46 @@ jobs:
           ${COMMITS}
           EOF
 
-      - name: 更新每日构建 Release
+      # ========== 以下是分段的 release 步骤 ==========
+
+      - name: 清理 Release 中的旧 IPA 文件
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="${{ steps.version.outputs.tag }}"
-          IPA_FILE="${{ steps.version.outputs.ipa }}"
-          
-          # 删除 release 中所有旧的 .ipa 文件
           echo "正在清理旧的 IPA 文件..."
           for asset in $(gh release view nightly --json assets -q '.assets[].name | select(contains(".ipa"))' 2>/dev/null); do
             echo "删除: $asset"
             gh release delete-asset nightly "$asset" --yes || true
           done
+
+      - name: 创建或更新 Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ steps.version.outputs.tag }}"
           
-          # 创建或更新 nightly release
           gh release view nightly >/dev/null 2>&1 || \
           gh release create nightly \
             --title "${TAG_NAME}" \
             --notes "初始每日构建" \
             --draft=false
+
+      - name: 更新 Release 标题和说明
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ steps.version.outputs.tag }}"
           
-          # 更新 release 信息
           gh release edit nightly \
             --title "${TAG_NAME}" \
             --notes-file release_notes.txt
+
+      - name: 上传 IPA 文件
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IPA_FILE="${{ steps.version.outputs.ipa }}"
           
-          # 上传新的 IPA
           echo "上传: $IPA_FILE"
           gh release upload nightly "$IPA_FILE" --clobber
           
