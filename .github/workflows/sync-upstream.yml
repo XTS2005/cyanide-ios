@@ -1,13 +1,7 @@
-name: Sync Upstream Tags
+name: Sync Upstream Tags (Keep Latest 5)
 
 on:
   workflow_dispatch:
-    inputs:
-      force_overwrite:
-        description: 'Force overwrite local tags (use with caution)'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -17,16 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout your fork
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Add upstream remote
         run: git remote add upstream https://github.com/zeroxjf/cyanide-ios.git
@@ -34,74 +23,40 @@ jobs:
       - name: Fetch upstream tags
         run: git fetch upstream --tags
 
-      - name: Get local and upstream tags
+      - name: Keep latest 5 tags, delete others
         run: |
-          # 获取本地已有的 tags
-          git tag > local_tags.txt
+          # 获取上游最新的 5 个 tags
+          git ls-remote --tags upstream | \
+            awk -F'/' '{print $3}' | \
+            sed 's/\^{}//' | \
+            grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | \
+            sort -Vr | \
+            head -5 > keep.txt
           
-          # 获取上游所有的 tags
-          git ls-remote --tags upstream | awk -F'/' '{print $3}' | sed 's/\^{}//' | grep -v '^$' > upstream_tags.txt
+          echo "=== Tags to keep ==="
+          cat keep.txt
           
-          # 找出本地没有的 tags（新 tags）
-          comm -23 <(sort upstream_tags.txt) <(sort local_tags.txt) > new_tags.txt
-          
-          # 找出已经存在的 tags（重复的）
-          comm -12 <(sort upstream_tags.txt) <(sort local_tags.txt) > duplicate_tags.txt
-          
-          echo "=== Tag Statistics ==="
-          echo "Upstream tags total: $(cat upstream_tags.txt | wc -l)"
-          echo "Local tags total: $(cat local_tags.txt | wc -l)"
-          echo "New tags to add: $(cat new_tags.txt | wc -l)"
-          echo "Duplicate tags (skipped): $(cat duplicate_tags.txt | wc -l)"
-
-      - name: Show duplicate tags (for inspection)
-        if: ${{ github.event.inputs.force_overwrite != 'true' }}
-        run: |
-          if [ -s duplicate_tags.txt ]; then
-            echo "=== Duplicate tags (will be skipped) ==="
-            head -20 duplicate_tags.txt
-            if [ $(cat duplicate_tags.txt | wc -l) -gt 20 ]; then
-              echo "... and $(($(cat duplicate_tags.txt | wc -l) - 20)) more"
+          # 删除本地所有不在 keep 列表中的 tags
+          for tag in $(git tag); do
+            if ! grep -qxF "$tag" keep.txt; then
+              echo "Deleting: $tag"
+              git tag -d "$tag"
+              git push origin --delete "$tag" || true
             fi
-          else
-            echo "No duplicate tags found"
-          fi
-
-      - name: Add only new tags (skip duplicates)
-        if: ${{ github.event.inputs.force_overwrite != 'true' }}
-        run: |
-          if [ ! -s new_tags.txt ]; then
-            echo "No new tags to add"
-            exit 0
-          fi
+          done
           
-          echo "Adding new tags..."
-          while IFS= read -r tag; do
-            if [ -n "$tag" ]; then
-              echo "  Adding tag: $tag"
+          # 添加 keep 列表中本地没有的 tags
+          for tag in $(cat keep.txt); do
+            if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "Adding: $tag"
               git fetch upstream "refs/tags/$tag:refs/tags/$tag"
             fi
-          done < new_tags.txt
+          done
           
-          echo "Pushing new tags to origin..."
-          git push origin --tags
-
-      - name: Force overwrite all tags (if requested)
-        if: ${{ github.event.inputs.force_overwrite == 'true' }}
-        run: |
-          echo "⚠️ Force overwriting all tags from upstream"
-          # 删除所有本地 tags
-          git tag -l | xargs -r git tag -d
-          # 重新拉取上游所有 tags
-          git fetch upstream --tags
-          # 强制推送所有 tags 到 origin
+          # 推送所有保留的 tags
           git push origin --tags --force
-          echo "✅ All tags synced with force overwrite"
 
-      - name: Show sync summary
+      - name: Show final tags
         run: |
-          echo "=== Sync Summary ==="
-          echo "Final local tags: $(git tag | wc -l)"
-          echo ""
-          echo "Latest 10 tags:"
-          git tag --sort=-v:refname | head -10
+          echo "=== Final tags ==="
+          git tag --sort=-v:refname
