@@ -42,7 +42,6 @@ jobs:
           name: cyanide-ipa
           path: |
             build/Cyanide.ipa
-            build/xcodebuild.log
 
       - name: upload release ipa
         if: github.event_name != 'pull_request'
