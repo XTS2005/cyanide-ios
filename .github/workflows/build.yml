@@ -105,75 +105,8 @@ jobs:
       # --------------------------------------------------------
       - name: 自动生成私有头文件
         run: |
-          mkdir -p Cyanide/tweaks/private
-          
-          # 扫描需要的私有头文件
-          echo "=== 扫描私有头文件 ==="
-          grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
-            sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | \
-            sort -u > required_headers.txt
-          
-          if [ ! -s required_headers.txt ]; then
-            echo "无需生成私有头文件"
-            exit 0
-          fi
-          
-          echo "找到以下头文件:"
-          cat required_headers.txt
-          
-          # 为每个头文件生成宏
-          while IFS= read -r header; do
-            [ -z "$header" ] && continue
-            name=$(basename "$header" .h)
-            filepath="Cyanide/tweaks/private/$header"
-            
-            # 提取函数名（去重）
-            FUNCS=$(grep -oE "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
-            
-            cat > "$filepath" << 'EOF'
-          //
-          //  Auto-generated
-          //  Cyanide
-          //
-          
-          #import <Foundation/Foundation.h>
-          @class RemoteCallSession;
-          
-          EOF
-            
-            if [ -n "$FUNCS" ]; then
-              while read -r func; do
-                case "$func" in
-                  *poll*)   echo "#define $func(...) nil" ;;
-                  *has*)    echo "#define $func(...) false" ;;
-                  *forget*) echo "#define $func(...)" ;;
-                  *)        echo "#define $func(...) true" ;;
-                esac
-              done <<< "$FUNCS" >> "$filepath"
-            else
-              # 默认存根
-              echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
-              echo "#define ${name}_stop_in_session(...) true" >> "$filepath"
-              echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
-            fi
-            
-            # typebanner 常量自动识别
-            if [[ "$header" == "typebanner.h" ]]; then
-              CONSTS=$(grep -oE 'TYPEBANNER_RC_[A-Z_]+' Cyanide/SettingsViewController.m 2>/dev/null | sort -u)
-              if [ -n "$CONSTS" ]; then
-                echo "" >> "$filepath"
-                echo "// Constants" >> "$filepath"
-                echo "$CONSTS" | while read -r const; do
-                  echo "#define $const 3000" >> "$filepath"
-                done
-              fi
-            fi
-            
-            echo "✅ $header ($(grep -c '^#define' "$filepath") 个宏)"
-          done < required_headers.txt
-          
-          echo "=== 生成完成 ==="
-          ls -la Cyanide/tweaks/private/
+          chmod +x .github/scripts/gen_private_headers.sh
+          .github/scripts/gen_private_headers.sh
 
       # --------------------------------------------------------
       # 构建 IPA
