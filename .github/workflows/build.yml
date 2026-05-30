@@ -85,35 +85,34 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 自动生成私有头文件（优化版）
+      # 自动生成私有头文件
       # ============================================
       - name: 自动生成私有头文件
         run: |
           mkdir -p Cyanide/tweaks/private
           
           # 扫描需要的私有头文件
-          HEADERS=$(grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
-                    sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | sort -u)
+          echo "=== 扫描私有头文件 ==="
+          grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
+            sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | \
+            sort -u > required_headers.txt
           
-          if [ -z "$HEADERS" ]; then
+          if [ ! -s required_headers.txt ]; then
             echo "无需生成私有头文件"
             exit 0
           fi
           
-          echo "需要生成: $HEADERS"
-          
-          # 提取所有函数调用（一次性）
-          FUNC_CALLS=$(grep -oE '[a-z]+_[a-z_]+\\(' Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
+          cat required_headers.txt
           
           # 为每个头文件生成宏
-          for header in $HEADERS; do
+          while IFS= read -r header; do
+            [ -z "$header" ] && continue
             name=$(basename "$header" .h)
             filepath="Cyanide/tweaks/private/$header"
             
-            # 筛选属于该头文件的函数
-            FUNCS=$(echo "$FUNC_CALLS" | grep "^${name}_" || true)
+            # 提取函数名（去重）
+            FUNCS=$(grep -oE "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
             
-            # 写入头部
             cat > "$filepath" << 'EOF'
           //
           //  Auto-generated
@@ -125,16 +124,15 @@ jobs:
           
           EOF
             
-            # 生成宏
             if [ -n "$FUNCS" ]; then
-              echo "$FUNCS" | while read -r func; do
+              while read -r func; do
                 case "$func" in
-                  *poll*|*Poll*)   echo "#define $func(...) nil" ;;
-                  *has*|*Has*)     echo "#define $func(...) false" ;;
+                  *poll*|*Poll*)  echo "#define $func(...) nil" ;;
+                  *has*|*Has*)    echo "#define $func(...) false" ;;
                   *forget*|*Forget*) echo "#define $func(...)" ;;
-                  *)               echo "#define $func(...) true" ;;
+                  *)              echo "#define $func(...) true" ;;
                 esac
-              done >> "$filepath"
+              done <<< "$FUNCS" >> "$filepath"
             else
               # 默认存根
               echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
@@ -142,15 +140,8 @@ jobs:
               echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
             fi
             
-            # typebanner 特殊常量
-            [ "$header" = "typebanner.h" ] && cat >> "$filepath" << 'EOF'
-          
-          #define TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS 3000
-          #define TYPEBANNER_RC_MOBILESMS_FIRST_EXCEPTION_TIMEOUT_MS 3000
-          EOF
-            
             echo "✅ $header ($(grep -c '^#define' "$filepath") 个宏)"
-          done
+          done < required_headers.txt
           
           echo "=== 生成完成 ==="
           ls -la Cyanide/tweaks/private/
