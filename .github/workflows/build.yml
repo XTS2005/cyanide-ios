@@ -85,13 +85,13 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 自动生成私有头文件（常量自动识别）
+      # 完全自动生成私有头文件
       # ============================================
       - name: 自动生成私有头文件
         run: |
           mkdir -p Cyanide/tweaks/private
           
-          # 扫描需要的私有头文件
+          # 扫描所有需要的私有头文件
           echo "=== 扫描私有头文件 ==="
           grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
             sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | \
@@ -105,18 +105,27 @@ jobs:
           echo "找到以下头文件:"
           cat required_headers.txt
           
+          # 提取所有函数调用（一次性）
+          FUNC_CALLS=$(grep -oE '[a-z]+_[a-z_]+\\(' Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
+          
+          # 提取所有常量（一次性）
+          ALL_CONSTS=$(grep -oE '[A-Z][A-Z0-9_]+' Cyanide/SettingsViewController.m 2>/dev/null | grep -E '^[A-Z_]+$' | sort -u)
+          
           # 为每个头文件生成宏
           while IFS= read -r header; do
             [ -z "$header" ] && continue
             name=$(basename "$header" .h)
             filepath="Cyanide/tweaks/private/$header"
             
-            # 提取函数名（去重）
-            FUNCS=$(grep -oE "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
+            # 筛选属于该头文件的函数
+            FUNCS=$(echo "$FUNC_CALLS" | grep "^${name}_" || true)
+            
+            # 筛选可能属于该头文件的常量（以头文件名大写开头）
+            CONSTS=$(echo "$ALL_CONSTS" | grep -E "^${name^^}_" || true)
             
             cat > "$filepath" << 'EOF'
           //
-          //  Auto-generated
+          //  Auto-generated from source code
           //  Cyanide
           //
           
@@ -125,36 +134,36 @@ jobs:
           
           EOF
             
+            # 生成函数宏
             if [ -n "$FUNCS" ]; then
-              while read -r func; do
+              echo "$FUNCS" | while read -r func; do
                 case "$func" in
-                  *poll*|*Poll*)  echo "#define $func(...) nil" ;;
-                  *has*|*Has*)    echo "#define $func(...) false" ;;
-                  *forget*|*Forget*) echo "#define $func(...)" ;;
-                  *)              echo "#define $func(...) true" ;;
+                  *poll*|*Poll*)      echo "#define $func(...) nil" ;;
+                  *has*|*Has*|*is*|*Is*) echo "#define $func(...) false" ;;
+                  *forget*|*Forget*|*release*|*Release*) echo "#define $func(...)" ;;
+                  *stop*|*Stop*)      echo "#define $func(...) true" ;;
+                  *)                  echo "#define $func(...) true" ;;
                 esac
-              done <<< "$FUNCS" >> "$filepath"
-            else
-              # 默认存根
+              done >> "$filepath"
+            fi
+            
+            # 生成常量定义
+            if [ -n "$CONSTS" ]; then
+              echo "" >> "$filepath"
+              echo "// Auto-generated constants" >> "$filepath"
+              echo "$CONSTS" | while read -r const; do
+                echo "#define $const 3000" >> "$filepath"
+              done
+            fi
+            
+            # 如果没有找到任何内容，生成默认存根
+            if [ $(grep -c '^#define' "$filepath" 2>/dev/null || echo "0") -eq 0 ]; then
               echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
               echo "#define ${name}_stop_in_session(...) true" >> "$filepath"
               echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
             fi
             
-            # typebanner 常量（自动识别）
-            if [[ "$header" == "typebanner.h" ]]; then
-              # 从 SettingsViewController.m 中提取所有 TYPEBANNER_RC_ 开头的常量
-              CONSTS=$(grep -oE 'TYPEBANNER_RC_[A-Z_]+' Cyanide/SettingsViewController.m 2>/dev/null | sort -u)
-              if [ -n "$CONSTS" ]; then
-                echo "" >> "$filepath"
-                echo "// Auto-generated constants" >> "$filepath"
-                echo "$CONSTS" | while read -r const; do
-                  echo "#define $const 3000" >> "$filepath"
-                done
-              fi
-            fi
-            
-            echo "✅ $header ($(grep -c '^#define' "$filepath") 个宏)"
+            echo "✅ $header ($(grep -c '^#define' "$filepath") 个定义)"
           done < required_headers.txt
           
           echo "=== 生成完成 ==="
