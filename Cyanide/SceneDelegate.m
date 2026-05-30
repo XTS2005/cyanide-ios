@@ -72,11 +72,11 @@
 
     UIViewController *root = self.window.rootViewController;
     if (!root) return;
-    NSString *msg = @"Automatic log collection is now off by default. Diagnostic uploads are opt-in only.\n\nYou can turn them on anytime in Settings > About > Auto-Upload Logs. When enabled, Cyanide uploads chain stage timing, error messages, device model, and iOS version after a run. Logs go to a private Cloudflare R2 bucket owned by @zeroxjf and expire after 30 days.";
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Log Collection Is Opt-In"
+    NSString *msg = @"自动日志收集现已默认关闭。诊断上传仅为自愿加入。\n\n您可以随时在“设置”>“关于”>“自动上传日志”中开启。开启后，Cyanide 会在每次运行后上传链阶段耗时、错误信息、设备型号和 iOS 版本。日志会发送到 @zeroxjf 持有的私有 Cloudflare R2 存储桶，并在 30 天后过期。";
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"日志收集为自愿加入"
                                                                    message:msg
                                                             preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+    [alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         [ud setBool:YES forKey:noticeKey];
         [ud setBool:YES forKey:@"cyanide.privacy.logConsentShown"];
         [ud synchronize];

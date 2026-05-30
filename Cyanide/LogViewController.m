@@ -14,7 +14,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"Log";
+    self.title = @"日志";
     self.view.backgroundColor = [UIColor colorWithRed:0.02 green:0.05 blue:0.06 alpha:1.0];
 
     _logView = [[LogTextView alloc] initWithFrame:CGRectZero];
