@@ -35,8 +35,8 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    self.title = @"Installer";
-    self.navigationItem.title = @"Installer";
+    self.title = @"安装器";
+    self.navigationItem.title = @"安装器";
 
     NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
     if (![ud objectForKey:kGroupByCategoryDefault]) {
@@ -61,7 +61,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     self.searchCtl = [[UISearchController alloc] initWithSearchResultsController:nil];
     self.searchCtl.searchResultsUpdater = self;
     self.searchCtl.obscuresBackgroundDuringPresentation = NO;
-    self.searchCtl.searchBar.placeholder = @"Search tweaks";
+    self.searchCtl.searchBar.placeholder = @"搜索插件";
     self.navigationItem.searchController = self.searchCtl;
     self.navigationItem.hidesSearchBarWhenScrolling = NO;
 
@@ -121,16 +121,16 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     return @[
         @{ @"icon":  @"wand.and.stars",
            @"color": UIColor.systemPurpleColor,
-           @"title": @"What's new",
-           @"body":  @"• Home Layout Extras — extra padding and per-icon scaling for the home grid and dock\n• StatBar now has a CPU% slot and slimmer KB/MB-only network speed\n• Manual Check for Updates button in Settings → Quick Actions\n• Smoother respring overlay" },
+           @"title": @"更新内容",
+           @"body":  @"• 主屏幕布局扩展 — 主屏幕网格和程序坞的额外边距和图标缩放\n• StatBar 新增 CPU% 显示和精简的 KB/MB 网络速度\n• 设置 → 快速操作中新增手动检查更新按钮\n• 注销时更丝滑的过渡画面" },
         @{ @"icon":  @"exclamationmark.triangle.fill",
            @"color": UIColor.systemOrangeColor,
-           @"title": @"Don't force-quit Cyanide",
-           @"body":  @"From the App Switcher kills live tweaks instantly — StatBar, Axon Lite, and anything else running per session stops the moment the app dies." },
+           @"title": @"请勿强制退出 Cyanide",
+           @"body":  @"从 App 切换器强制退出会立即终止实时插件 — StatBar、Axon Lite 以及任何在会话中运行的内容都会在应用退出的瞬间停止。" },
         @{ @"icon":  @"envelope.fill",
            @"color": UIColor.systemBlueColor,
-           @"title": @"Need specific help?",
-           @"body":  @"Diagnostic log uploads are opt-in from Settings > About. Use the button below to reach me directly with your device info — tell me what you ran into." },
+           @"title": @"需要具体帮助？",
+           @"body":  @"诊断日志上传可在“设置”→“关于”中选择开启。使用下面的按钮直接联系我，附上您的设备信息 — 告诉我您遇到了什么问题。" },
     ];
 }
 
@@ -220,7 +220,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
                         imageWithTintColor:UIColor.systemPurpleColor
                           renderingMode:UIImageRenderingModeAlwaysOriginal];
     [headAS appendAttributedString:[NSAttributedString attributedStringWithAttachment:sparkle]];
-    [headAS appendAttributedString:[[NSAttributedString alloc] initWithString:@"  What's New & Tips" attributes:@{
+    [headAS appendAttributedString:[[NSAttributedString alloc] initWithString:@"  更新与提示" attributes:@{
         NSFontAttributeName: [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold],
         NSForegroundColorAttributeName: UIColor.labelColor,
     }]];
@@ -265,7 +265,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
 
         // Contact button
         UIButtonConfiguration *cfg = [UIButtonConfiguration tintedButtonConfiguration];
-        cfg.title = @"Contact zeroxjf";
+        cfg.title = @"联系 zeroxjf";
         cfg.image = [UIImage systemImageNamed:@"envelope.fill"];
         cfg.imagePadding = 6.0;
         cfg.imagePlacement = NSDirectionalRectEdgeLeading;
@@ -328,7 +328,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
 
 - (void)installSortBarButton
 {
-    UIAction *flat = [UIAction actionWithTitle:@"Alphabetical"
+    UIAction *flat = [UIAction actionWithTitle:@"按字母排序"
                                          image:[UIImage systemImageNamed:@"list.bullet"]
                                     identifier:nil
                                        handler:^(UIAction *_) {
@@ -336,7 +336,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     }];
     flat.state = self.groupByCategory ? UIMenuElementStateOff : UIMenuElementStateOn;
 
-    UIAction *byCat = [UIAction actionWithTitle:@"By Category"
+    UIAction *byCat = [UIAction actionWithTitle:@"按分类排序"
                                           image:[UIImage systemImageNamed:@"folder"]
                                      identifier:nil
                                         handler:^(UIAction *_) {
@@ -344,7 +344,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     }];
     byCat.state = self.groupByCategory ? UIMenuElementStateOn : UIMenuElementStateOff;
 
-    UIMenu *menu = [UIMenu menuWithTitle:@"Sort" children:@[flat, byCat]];
+    UIMenu *menu = [UIMenu menuWithTitle:@"排序" children:@[flat, byCat]];
     UIBarButtonItem *btn = [[UIBarButtonItem alloc]
         initWithImage:[UIImage systemImageNamed:@"line.3.horizontal.decrease.circle"]
                  menu:menu];
@@ -535,57 +535,57 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     PackageQueueIntent intent = [[PackageQueue sharedQueue] intentForPackage:pkg];
     if (pkg.kind == PackageInstallKindOTA) {
         if (intent != PackageQueueIntentNone) {
-            NSString *text = (intent == PackageQueueIntentInstall) ? @"DISABLE QUEUED" : @"ENABLE QUEUED";
+            NSString *text = (intent == PackageQueueIntentInstall) ? @"待禁用" : @"待启用";
             UIColor *color = self.view.tintColor;
             return [self pillWithText:text
                            background:[color colorWithAlphaComponent:0.18]
                             textColor:color];
         }
-        return [self pillWithText:@"MANUAL"
+        return [self pillWithText:@"手动控制"
                        background:[UIColor.secondaryLabelColor colorWithAlphaComponent:0.14]
                         textColor:UIColor.secondaryLabelColor];
     }
     if (pkg.kind == PackageInstallKindNanoRegistry) {
         if (intent != PackageQueueIntentNone) {
-            NSString *text = (intent == PackageQueueIntentInstall) ? @"APPLY QUEUED" : @"REMOVE QUEUED";
+            NSString *text = (intent == PackageQueueIntentInstall) ? @"待应用已" : @"待移除已";
             UIColor *color = self.view.tintColor;
             return [self pillWithText:text
                            background:[color colorWithAlphaComponent:0.18]
                             textColor:color];
         }
-        return [self pillWithText:@"MANUAL"
+        return [self pillWithText:@"手动控制"
                        background:[UIColor.secondaryLabelColor colorWithAlphaComponent:0.14]
                         textColor:UIColor.secondaryLabelColor];
     }
     if (intent != PackageQueueIntentNone) {
-        NSString *text = (intent == PackageQueueIntentInstall) ? @"Queued" : @"Removing";
+        NSString *text = (intent == PackageQueueIntentInstall) ? @"待处理" : @"移除中";
         UIColor *color = self.view.tintColor;
         return [self pillWithText:text
                        background:[color colorWithAlphaComponent:0.18]
                         textColor:color];
     }
     if (pkg.isInstalled) {
-        return [self pillWithText:@"Installed"
+        return [self pillWithText:@"已安装"
                        background:[UIColor colorWithRed:0.16 green:0.55 blue:0.32 alpha:0.18]
                         textColor:[UIColor systemGreenColor]];
     }
     if (pkg.isInstallDisabled) {
-        return [self pillWithText:@"DISABLED"
+        return [self pillWithText:@"存在问题"
                        background:[[UIColor systemRedColor] colorWithAlphaComponent:0.16]
                         textColor:[UIColor systemRedColor]];
     }
     if (pkg.experimental) {
-        return [self pillWithText:@"EXPERIMENTAL"
+        return [self pillWithText:@"实验性"
                        background:[[UIColor systemRedColor] colorWithAlphaComponent:0.18]
                         textColor:[UIColor systemRedColor]];
     }
     if ([pkg.category caseInsensitiveCompare:@"Beta"] == NSOrderedSame) {
-        return [self pillWithText:@"BETA"
+        return [self pillWithText:@"测试版"
                        background:[[UIColor systemPurpleColor] colorWithAlphaComponent:0.18]
                         textColor:[UIColor systemPurpleColor]];
     }
     if (pkg.isNew) {
-        return [self pillWithText:@"NEW"
+        return [self pillWithText:@"新"
                        background:[UIColor colorWithRed:0.95 green:0.55 blue:0.05 alpha:0.18]
                         textColor:[UIColor systemOrangeColor]];
     }
@@ -633,7 +633,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     if (pkg.kind == PackageInstallKindOTA && intent == PackageQueueIntentNone) {
         UIContextualAction *disable = [UIContextualAction
             contextualActionWithStyle:UIContextualActionStyleDestructive
-                                title:@"Disable"
+                                title:@"禁用"
                               handler:^(UIContextualAction *a, UIView *v, void (^done)(BOOL)) {
             [q queueIntent:PackageQueueIntentInstall forPackage:pkg];
             done(YES);
@@ -642,7 +642,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
 
         UIContextualAction *enable = [UIContextualAction
             contextualActionWithStyle:UIContextualActionStyleNormal
-                                title:@"Enable"
+                                title:@"启用"
                               handler:^(UIContextualAction *a, UIView *v, void (^done)(BOOL)) {
             [q queueIntent:PackageQueueIntentUninstall forPackage:pkg];
             done(YES);
@@ -658,7 +658,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     if (pkg.kind == PackageInstallKindNanoRegistry && intent == PackageQueueIntentNone) {
         UIContextualAction *apply = [UIContextualAction
             contextualActionWithStyle:UIContextualActionStyleNormal
-                                title:@"Apply"
+                                title:@"应用"
                               handler:^(UIContextualAction *a, UIView *v, void (^done)(BOOL)) {
             [q queueIntent:PackageQueueIntentInstall forPackage:pkg];
             done(YES);
@@ -668,7 +668,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
 
         UIContextualAction *remove = [UIContextualAction
             contextualActionWithStyle:UIContextualActionStyleDestructive
-                                title:@"Remove"
+                                title:@"移除"
                               handler:^(UIContextualAction *a, UIView *v, void (^done)(BOOL)) {
             [q queueIntent:PackageQueueIntentUninstall forPackage:pkg];
             done(YES);
@@ -684,19 +684,19 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     UIColor *color;
     NSString *symbol;
     if (intent != PackageQueueIntentNone) {
-        title  = @"Remove";
+        title  = @"移除";
         color  = [UIColor systemGrayColor];
         symbol = @"xmark.circle";
     } else if (pkg.isInstalled) {
-        title  = @"Uninstall";
+        title  = @"卸载";
         color  = [UIColor systemRedColor];
         symbol = @"trash";
     } else if ([self packageNeedsThemeBeforeInstall:pkg]) {
-        title  = @"Select Theme";
+        title  = @"选择主题";
         color  = self.view.tintColor;
         symbol = @"paintpalette";
     } else {
-        title  = @"Queue";
+        title  = @"待处理";
         color  = self.view.tintColor;
         symbol = @"tray.and.arrow.down";
     }
@@ -729,15 +729,15 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
 
 - (void)presentThemeRequiredAlertForPackage:(Package *)pkg
 {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Select a Theme"
-                                                                   message:@"Cyanide Themer needs a selected theme before it can be queued. Choose iOS 6 Theme or import a custom theme first."
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"选择一个主题"
+                                                                   message:@"Cyanide 主题需要先选择一个主题才能加入待处理。请选择 iOS 6 主题或先导入一个自定义主题。"
                                                             preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Open Theme Settings"
+    [alert addAction:[UIAlertAction actionWithTitle:@"打开主题设置"
                                              style:UIAlertActionStyleDefault
                                            handler:^(UIAlertAction *_) {
         [self navigateToSettingsSectionForPackage:pkg];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel"
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消"
                                              style:UIAlertActionStyleCancel
                                            handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
@@ -750,7 +750,7 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
     UINavigationController *settingsNav = nil;
     for (NSUInteger i = 0; i < tab.viewControllers.count; i++) {
         UIViewController *vc = tab.viewControllers[i];
-        if ([vc.tabBarItem.title isEqualToString:@"Settings"]) {
+        if ([vc.tabBarItem.title isEqualToString:@"设置"]) {
             settingsIndex = i;
             if ([vc isKindOfClass:UINavigationController.class]) {
                 settingsNav = (UINavigationController *)vc;
@@ -771,23 +771,23 @@ static NSString * const kTipsExpandedDefault    = @"installer.tipsExpanded";
 - (void)presentConfigureAlertForPackage:(Package *)pkg
 {
     NSString *msg = [NSString stringWithFormat:
-        @"%@ has configurable options. Set them up first so the tweak applies with your preferences on the first run.",
+        @"%@ 有可配置的选项。请先配置好，这样插件就能在首次运行时应用您的偏好设置。",
         pkg.name];
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Customize Before Installing?"
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"安装前先配置？"
                                                                    message:msg
                                                             preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Configure First"
+    [alert addAction:[UIAlertAction actionWithTitle:@"先去配置"
                                              style:UIAlertActionStyleDefault
                                            handler:^(UIAlertAction *_) {
         PackageDetailViewController *detail = [[PackageDetailViewController alloc] initWithPackage:pkg];
         [self.navigationController pushViewController:detail animated:YES];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Install Anyway"
+    [alert addAction:[UIAlertAction actionWithTitle:@"仍然安装"
                                              style:UIAlertActionStyleDefault
                                            handler:^(UIAlertAction *_) {
         [[PackageQueue sharedQueue] toggleForPackage:pkg];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel"
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消"
                                              style:UIAlertActionStyleCancel
                                            handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];

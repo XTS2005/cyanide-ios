@@ -24,7 +24,7 @@
     [super viewDidLoad];
     self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     self.view.backgroundColor = [UIColor colorWithRed:0.02 green:0.05 blue:0.06 alpha:1.0];
-    self.title = @"Activity";
+    self.title = @"进度";
     self.modalInPresentation = NO; // user can swipe to dismiss any time
 
     self.logView = [[LogTextView alloc] initWithFrame:CGRectZero];
@@ -49,7 +49,7 @@
 
     self.statusLabel = [[UILabel alloc] init];
     self.statusLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    self.statusLabel.text = @"Exploit running — recommended to wait here until complete.";
+    self.statusLabel.text = @"正在运行漏洞 — 建议在此等待完成。";
     self.statusLabel.font = [UIFont systemFontOfSize:13.0];
     self.statusLabel.textColor = [UIColor.whiteColor colorWithAlphaComponent:0.72];
     self.statusLabel.numberOfLines = 1;
@@ -80,7 +80,7 @@
         [self.statusLabel.centerYAnchor  constraintEqualToAnchor:footer.centerYAnchor],
     ]];
 
-    self.hideOrDoneButton = [[UIBarButtonItem alloc] initWithTitle:@"Hide"
+    self.hideOrDoneButton = [[UIBarButtonItem alloc] initWithTitle:@"隐藏"
                                                              style:UIBarButtonItemStylePlain
                                                             target:self
                                                             action:@selector(didTapDone)];
@@ -108,12 +108,12 @@
     NSString *message = note.userInfo[kSettingsActionsDidCompleteMessageKey];
     self.statusLabel.text = message.length
         ? message
-        : (success ? @"Done. All tweaks applied in-session." : @"Failed. Check the log for details.");
+        : (success ? @"完成。所有插件已在本次生效。" : @"失败。请查看日志了解详情。");
     self.statusLabel.textColor = success
         ? [UIColor colorWithRed:0.45 green:0.85 blue:0.55 alpha:1.0]
         : [UIColor colorWithRed:1.0 green:0.42 blue:0.35 alpha:1.0];
-    self.title = success ? @"Complete" : @"Failed";
-    self.hideOrDoneButton.title = @"Done";
+    self.title = success ? @"完成" : @"失败";
+    self.hideOrDoneButton.title = @"完成";
 }
 
 - (void)didTapDone
