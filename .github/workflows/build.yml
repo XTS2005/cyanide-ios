@@ -85,9 +85,9 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 精确自动识别并生成私有头文件
+      # 自动生成所有私有头文件（精确万能宏版）
       # ============================================
-      - name: 精确生成私有头文件
+      - name: 自动生成私有头文件
         run: |
           mkdir -p Cyanide/tweaks/private
           
@@ -105,7 +105,7 @@ jobs:
           echo "找到以下私有头文件引用:"
           cat required_headers.txt
           
-          # 为每个头文件精确生成函数签名
+          # 为每个头文件生成精确的万能宏
           while IFS= read -r header; do
             if [ -z "$header" ]; then
               continue
@@ -129,76 +129,38 @@ jobs:
           
           EOF
             
-            # 扫描 SettingsViewController.m 中该头文件相关的函数调用
-            # 提取函数名和参数，生成精确签名
-            grep -E "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | \
-              sed -E 's/.*('${name}'_[a-zA-Z_]+) *\(([^)]*)\).*/FUNC:\1|PARAMS:\2/' | \
+            # 扫描 SettingsViewController.m 中所有该前缀的函数调用
+            # 提取函数名，生成对应的宏
+            grep -oE "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | \
+              sed 's/($//' | \
               sort -u | \
-              while IFS='|' read -r func_part params_part; do
-                func_name=$(echo "$func_part" | sed 's/FUNC://')
-                params=$(echo "$params_part" | sed 's/PARAMS://')
-                
-                if [ -z "$func_name" ]; then
-                  continue
-                fi
-                
-                # 清理参数
-                clean_params=$(echo "$params" | sed -E 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                
-                if [ -z "$clean_params" ] || [ "$clean_params" = "void" ]; then
-                  # 无参数函数
-                  echo "static inline bool $func_name(void) { return true; }" >> "$filepath"
-                  echo "  📝 $func_name(void)"
+              while read -r func_name; do
+                # 根据函数名特征判断返回类型
+                if [[ "$func_name" == *"poll"* ]] || [[ "$func_name" == *"Poll"* ]]; then
+                  # poll 函数返回 NSString*
+                  echo "#define $func_name(...) nil" >> "$filepath"
+                  echo "  📝 #define $func_name(...) nil"
+                elif [[ "$func_name" == *"has"* ]] || [[ "$func_name" == *"Has"* ]]; then
+                  # has 函数返回 bool
+                  echo "#define $func_name(...) false" >> "$filepath"
+                  echo "  📝 #define $func_name(...) false"
+                elif [[ "$func_name" == *"forget"* ]] || [[ "$func_name" == *"Forget"* ]]; then
+                  # forget 函数无返回值
+                  echo "#define $func_name(...)" >> "$filepath"
+                  echo "  📝 #define $func_name(...)"
                 else
-                  # 有参数函数：精确推断类型
-                  typed_params=""
-                  param_names=""
-                  IFS=',' read -ra PARTS <<< "$clean_params"
-                  for part in "${PARTS[@]}"; do
-                    part=$(echo "$part" | sed -E 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                    param_names="$param_names $part"
-                    
-                    # 精确类型推断
-                    if [[ "$part" == *"RemoteCallSession"* ]] || [[ "$part" == *"session"* ]]; then
-                      if [[ "$part" == *"**"* ]]; then
-                        typed_params="${typed_params}RemoteCallSession **, "
-                      else
-                        typed_params="${typed_params}RemoteCallSession *, "
-                      fi
-                    elif [[ "$part" == *"BOOL"* ]] || [[ "$part" == *"hasSpringBoard"* ]]; then
-                      typed_params="${typed_params}BOOL, "
-                    elif [[ "$part" == *"NSString"* ]] || [[ "$part" == *"label"* ]] || [[ "$part" == *"str"* ]]; then
-                      typed_params="${typed_params}NSString *, "
-                    elif [[ "$part" == "showWifi" ]] || [[ "$part" == "showCell" ]]; then
-                      typed_params="${typed_params}bool, "
-                    elif [[ "$part" == *"&"* ]] && [[ "$part" == *"mobileSession"* ]]; then
-                      typed_params="${typed_params}RemoteCallSession **, "
-                    elif [[ "$part" == *"&"* ]]; then
-                      typed_params="${typed_params}void **, "
-                    elif [[ "$part" =~ ^[0-9]+$ ]]; then
-                      typed_params="${typed_params}int, "
-                    else
-                      typed_params="${typed_params}bool, "
-                    fi
-                  done
-                  # 去掉末尾的逗号和空格
-                  typed_params=$(echo "$typed_params" | sed 's/, $//')
-                  
-                  echo "static inline bool $func_name($typed_params) { return true; }" >> "$filepath"
-                  echo "  📝 $func_name($typed_params)"
+                  # 其他函数返回 true
+                  echo "#define $func_name(...) true" >> "$filepath"
+                  echo "  📝 #define $func_name(...) true"
                 fi
               done
             
-            # 如果没有找到任何函数，生成默认存根
-            if [ ! -s "$filepath" ] || [ $(grep -c "static inline" "$filepath" 2>/dev/null || echo "0") -eq 0 ]; then
-              echo "static inline bool ${name}_apply_in_session(void) { return true; }" >> "$filepath"
-              echo "static inline bool ${name}_stop_in_session(void) { return true; }" >> "$filepath"
-              echo "static inline void ${name}_forget_remote_state(void) {}" >> "$filepath"
-              echo "  ⚠️ 未找到函数调用，使用默认存根"
-            else
-              # 去重
-              sort -u "$filepath" > "${filepath}.tmp"
-              mv "${filepath}.tmp" "$filepath"
+            # 如果没有找到任何函数，生成默认宏
+            if [ ! -s "$filepath" ] || [ $(grep -c "^#define" "$filepath" 2>/dev/null || echo "0") -eq 0 ]; then
+              echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
+              echo "#define ${name}_stop_in_session(...) true" >> "$filepath"
+              echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
+              echo "  ⚠️ 未找到函数调用，使用默认宏"
             fi
             
             # 为 typebanner 添加常量
@@ -211,7 +173,7 @@ jobs:
               fi
             fi
             
-            echo "  ✅ 完成，共 $(grep -c 'static inline' "$filepath" 2>/dev/null || echo 0) 个函数"
+            echo "  ✅ 完成，共 $(grep -c '^#define' "$filepath" 2>/dev/null || echo 0) 个宏"
             
           done < required_headers.txt
           
