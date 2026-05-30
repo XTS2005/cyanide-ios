@@ -13,25 +13,32 @@ permissions:
   contents: write
 
 jobs:
+  # ============================================================
   # 构建任务
+  # ============================================================
   build:
     runs-on: macos-latest
     
     steps:
+      # --------------------------------------------------------
+      # 检出代码
+      # --------------------------------------------------------
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 可选：同步上游 Tags
-      - name: 同步上游 Tags（勾选时执行）
+      # --------------------------------------------------------
+      # 同步上游 Tags（可选）
+      # --------------------------------------------------------
+      - name: 同步上游 Tags
         if: github.event.inputs.sync_upstream_first == 'true'
         run: |
           echo "=== 同步上游 Tags ==="
           git remote add upstream https://github.com/zeroxjf/cyanide-ios.git
           git fetch upstream --tags
           
-          # 获取上游最新的 5 个正式版本 tags
+          # 获取上游最新的 5 个正式版本
           git ls-remote --tags upstream | \
             awk -F'/' '{print $3}' | \
             sed 's/\^{}//' | \
@@ -39,7 +46,7 @@ jobs:
             sort -Vr | \
             head -5 > keep.txt
           
-          # 把 nightly 加入保留列表（如果存在）
+          # 保留 nightly tag
           if git rev-parse -q --verify "refs/tags/nightly" >/dev/null; then
             echo "nightly" >> keep.txt
           fi
@@ -47,7 +54,7 @@ jobs:
           echo "=== 将保留的 Tags ==="
           cat keep.txt
           
-          # 删除本地所有不在保留列表中的 tags
+          # 删除不在保留列表中的 tags
           for tag in $(git tag); do
             if ! grep -qxF "$tag" keep.txt; then
               echo "删除: $tag"
@@ -56,7 +63,7 @@ jobs:
             fi
           done
           
-          # 添加保留列表中本地没有的正式版本 tags
+          # 添加缺失的正式版本 tags
           for tag in $(grep -E '^v[0-9]' keep.txt); do
             if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
               echo "添加: $tag"
@@ -70,46 +77,60 @@ jobs:
           echo "=== 同步完成 ==="
           git tag --sort=-v:refname
 
+      # --------------------------------------------------------
+      # 配置 Xcode
+      # --------------------------------------------------------
       - name: 配置 Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
+      # --------------------------------------------------------
+      # 显示 Xcode 版本
+      # --------------------------------------------------------
       - name: 显示 Xcode 版本
         run: xcodebuild -version
 
+      # --------------------------------------------------------
+      # 生成更新日志
+      # --------------------------------------------------------
       - name: 生成更新日志
         run: |
           brew install bash
           chmod +x scripts/gen-changelog.sh
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
-      # ============================================
-      # 自动生成私有头文件（整合版）
-      # ============================================
+      # --------------------------------------------------------
+      # 自动生成私有头文件
+      # --------------------------------------------------------
       - name: 自动生成私有头文件
         run: |
           mkdir -p Cyanide/tweaks/private
           
           # 扫描需要的私有头文件
+          echo "=== 扫描私有头文件 ==="
           grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
-            sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | sort -u > headers.txt
+            sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | \
+            sort -u > required_headers.txt
           
-          [ ! -s headers.txt ] && echo "无需生成私有头文件" && exit 0
+          if [ ! -s required_headers.txt ]; then
+            echo "无需生成私有头文件"
+            exit 0
+          fi
           
-          echo "需要生成: $(cat headers.txt)"
+          echo "找到以下头文件:"
+          cat required_headers.txt
           
-          # 提取函数和常量
-          MAIN="Cyanide/SettingsViewController.m"
-          FUNCS_ALL=$(grep -oE '[a-z]+_[a-z_]+\\(' "$MAIN" 2>/dev/null | sed 's/($//' | sort -u)
-          CONSTS_ALL=$(grep -oE 'TYPEBANNER_RC_[A-Z_]+' "$MAIN" 2>/dev/null | sort -u)
-          
-          # 生成每个头文件
-          while read -r header; do
+          # 为每个头文件生成宏
+          while IFS= read -r header; do
+            [ -z "$header" ] && continue
             name=$(basename "$header" .h)
-            out="Cyanide/tweaks/private/$header"
+            filepath="Cyanide/tweaks/private/$header"
             
-            cat > "$out" << 'EOF'
+            # 提取函数名（去重）
+            FUNCS=$(grep -oE "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
+            
+            cat > "$filepath" << 'EOF'
           //
           //  Auto-generated
           //  Cyanide
@@ -120,63 +141,85 @@ jobs:
           
           EOF
             
-            # 函数宏
-            echo "$FUNCS_ALL" | grep "^${name}_" | while read -r func; do
-              case "$func" in
-                *poll*)   echo "#define $func(...) nil" ;;
-                *has*)    echo "#define $func(...) false" ;;
-                *forget*) echo "#define $func(...)" ;;
-                *)        echo "#define $func(...) true" ;;
-              esac
-            done >> "$out"
-            
-            # 默认存根（无函数时）
-            if ! grep -q '^#define' "$out"; then
-              echo "#define ${name}_apply_in_session(...) true" >> "$out"
-              echo "#define ${name}_stop_in_session(...) true" >> "$out"
-              echo "#define ${name}_forget_remote_state(...)" >> "$out"
+            if [ -n "$FUNCS" ]; then
+              while read -r func; do
+                case "$func" in
+                  *poll*)   echo "#define $func(...) nil" ;;
+                  *has*)    echo "#define $func(...) false" ;;
+                  *forget*) echo "#define $func(...)" ;;
+                  *)        echo "#define $func(...) true" ;;
+                esac
+              done <<< "$FUNCS" >> "$filepath"
+            else
+              # 默认存根
+              echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
+              echo "#define ${name}_stop_in_session(...) true" >> "$filepath"
+              echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
             fi
             
-            # typebanner 常量
-            if [ "$header" = "typebanner.h" ] && [ -n "$CONSTS_ALL" ]; then
-              echo "" >> "$out"
-              echo "// Constants" >> "$out"
-              echo "$CONSTS_ALL" | while read -r c; do echo "#define $c 3000"; done >> "$out"
+            # typebanner 常量自动识别
+            if [[ "$header" == "typebanner.h" ]]; then
+              CONSTS=$(grep -oE 'TYPEBANNER_RC_[A-Z_]+' Cyanide/SettingsViewController.m 2>/dev/null | sort -u)
+              if [ -n "$CONSTS" ]; then
+                echo "" >> "$filepath"
+                echo "// Constants" >> "$filepath"
+                echo "$CONSTS" | while read -r const; do
+                  echo "#define $const 3000" >> "$filepath"
+                done
+              fi
             fi
             
-            echo "✅ $header ($(grep -c '^#define' "$out") 宏)"
-          done < headers.txt
+            echo "✅ $header ($(grep -c '^#define' "$filepath") 个宏)"
+          done < required_headers.txt
           
-          rm -f headers.txt
+          echo "=== 生成完成 ==="
           ls -la Cyanide/tweaks/private/
 
+      # --------------------------------------------------------
+      # 构建 IPA
+      # --------------------------------------------------------
       - name: 构建 IPA
         run: |
           chmod +x scripts/build.sh
           ./scripts/build.sh
 
+      # --------------------------------------------------------
+      # 上传 IPA
+      # --------------------------------------------------------
       - name: 上传 IPA
         uses: actions/upload-artifact@v4
         with:
           name: release-ipa
           path: build/Cyanide-*.ipa
 
+  # ============================================================
   # Release 任务
+  # ============================================================
   release:
     runs-on: ubuntu-latest
     needs: [build]
+    
     steps:
+      # --------------------------------------------------------
+      # 检出代码
+      # --------------------------------------------------------
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # --------------------------------------------------------
+      # 下载 IPA
+      # --------------------------------------------------------
       - name: 下载 IPA
         uses: actions/download-artifact@v4
         with:
           name: release-ipa
           path: build/
 
+      # --------------------------------------------------------
+      # 获取版本信息
+      # --------------------------------------------------------
       - name: 获取版本信息
         id: version
         run: |
@@ -188,6 +231,9 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
 
+      # --------------------------------------------------------
+      # 获取提交记录
+      # --------------------------------------------------------
       - name: 获取提交记录
         run: |
           COMMITS=$(git log --since="12 hours ago" --pretty=format:"- %h %s (%an)" | head -20)
@@ -196,6 +242,9 @@ jobs:
           echo "$COMMITS" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+      # --------------------------------------------------------
+      # 写入发布说明
+      # --------------------------------------------------------
       - name: 写入发布说明
         run: |
           cat <<EOF > release_notes.txt
@@ -206,6 +255,9 @@ jobs:
           ${COMMITS}
           EOF
 
+      # --------------------------------------------------------
+      # 更新 Release
+      # --------------------------------------------------------
       - name: 更新 Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
