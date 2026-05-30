@@ -140,6 +140,13 @@ jobs:
               echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
             fi
             
+            # typebanner 常量
+            [[ "$header" == "typebanner.h" ]] && cat >> "$filepath" << 'EOF'
+          
+          #define TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS 3000
+          #define TYPEBANNER_RC_MOBILESMS_FIRST_EXCEPTION_TIMEOUT_MS 3000
+          EOF
+            
             echo "✅ $header ($(grep -c '^#define' "$filepath") 个宏)"
           done < required_headers.txt
           
