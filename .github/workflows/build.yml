@@ -85,41 +85,35 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 完全自动生成私有头文件（优化版）
+      # 自动生成私有头文件
       # ============================================
       - name: 自动生成私有头文件
         run: |
           mkdir -p Cyanide/tweaks/private
           
-          # 1. 扫描需要的私有头文件
-          HEADERS=$(grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
-                    sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | sort -u)
+          # 扫描需要的私有头文件
+          echo "=== 扫描私有头文件 ==="
+          grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
+            sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | \
+            sort -u > required_headers.txt
           
-          if [ -z "$HEADERS" ]; then
+          if [ ! -s required_headers.txt ]; then
             echo "无需生成私有头文件"
             exit 0
           fi
           
-          echo "需要生成: $HEADERS"
+          echo "找到以下头文件:"
+          cat required_headers.txt
           
-          # 2. 提取所有函数和常量（一次性扫描）
-          MAIN_FILE="Cyanide/SettingsViewController.m"
-          FUNCS_ALL=$(grep -oE '[a-z]+_[a-z_]+\\(' "$MAIN_FILE" 2>/dev/null | sed 's/($//' | sort -u)
-          CONSTS_ALL=$(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' "$MAIN_FILE" 2>/dev/null | grep -v '^[0-9]' | sort -u)
-          
-          # 3. 为每个头文件生成内容
-          for header in $HEADERS; do
+          # 为每个头文件生成宏
+          while IFS= read -r header; do
+            [ -z "$header" ] && continue
             name=$(basename "$header" .h)
             filepath="Cyanide/tweaks/private/$header"
             
-            # 筛选函数
-            FUNCS=$(echo "$FUNCS_ALL" | grep "^${name}_" || true)
-            # 筛选常量（以头文件名大写开头或包含头文件名）
-            CONSTS=$(echo "$CONSTS_ALL" | grep -i "_${name}_" || true)
-            CONSTS="$CONSTS$(echo "$CONSTS_ALL" | grep -i "^${name}_" || true)"
-            CONSTS=$(echo "$CONSTS" | sort -u)
+            # 提取函数名（去重）
+            FUNCS=$(grep -oE "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
             
-            # 写入头部
             cat > "$filepath" << 'EOF'
           //
           //  Auto-generated
@@ -131,42 +125,36 @@ jobs:
           
           EOF
             
-            # 生成函数宏
             if [ -n "$FUNCS" ]; then
-              echo "$FUNCS" | while read -r func; do
+              while read -r func; do
                 case "$func" in
                   *poll*)   echo "#define $func(...) nil" ;;
                   *has*)    echo "#define $func(...) false" ;;
-                  *is*)     echo "#define $func(...) false" ;;
                   *forget*) echo "#define $func(...)" ;;
-                  *release*)echo "#define $func(...)" ;;
-                  *stop*)   echo "#define $func(...) true" ;;
                   *)        echo "#define $func(...) true" ;;
                 esac
-              done >> "$filepath"
-            fi
-            
-            # 生成常量
-            if [ -n "$CONSTS" ]; then
-              [ -n "$FUNCS" ] && echo "" >> "$filepath"
-              echo "// Constants" >> "$filepath"
-              echo "$CONSTS" | while read -r const; do
-                echo "#define $const 3000" >> "$filepath"
-              done
-            fi
-            
-            # 默认存根
-            if [ $(grep -c '^#define' "$filepath" 2>/dev/null || echo 0) -eq 0 ]; then
+              done <<< "$FUNCS" >> "$filepath"
+            else
+              # 默认存根
               echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
               echo "#define ${name}_stop_in_session(...) true" >> "$filepath"
               echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
             fi
             
-            # 去重
-            sort -u "$filepath" > "${filepath}.tmp" && mv "${filepath}.tmp" "$filepath"
+            # typebanner 常量自动识别
+            if [[ "$header" == "typebanner.h" ]]; then
+              CONSTS=$(grep -oE 'TYPEBANNER_RC_[A-Z_]+' Cyanide/SettingsViewController.m 2>/dev/null | sort -u)
+              if [ -n "$CONSTS" ]; then
+                echo "" >> "$filepath"
+                echo "// Constants" >> "$filepath"
+                echo "$CONSTS" | while read -r const; do
+                  echo "#define $const 3000" >> "$filepath"
+                done
+              fi
+            fi
             
-            echo "✅ $header ($(grep -c '^#define' "$filepath") defs)"
-          done
+            echo "✅ $header ($(grep -c '^#define' "$filepath") 个宏)"
+          done < required_headers.txt
           
           echo "=== 生成完成 ==="
           ls -la Cyanide/tweaks/private/
