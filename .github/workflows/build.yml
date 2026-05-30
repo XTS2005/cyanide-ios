@@ -85,7 +85,7 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 自动生成所有私有头文件（精确万能宏版）
+      # 自动生成私有头文件（优化版）
       # ============================================
       - name: 自动生成私有头文件
         run: |
@@ -105,6 +105,18 @@ jobs:
           echo "找到以下私有头文件引用:"
           cat required_headers.txt
           
+          # 收集所有源文件中的函数调用
+          echo ""
+          echo "=== 扫描函数调用 ==="
+          TMP_DIR=$(mktemp -d)
+          ALL_FUNCTIONS="$TMP_DIR/all_functions.txt"
+          
+          # 扫描所有 .m 文件中的函数调用（格式: xxx_yyy(）
+          find Cyanide -name "*.m" -exec grep -oE '[a-z]+_[a-z_]+\\(' {} \; 2>/dev/null | \
+            sed 's/($//' | sort -u > "$ALL_FUNCTIONS"
+          
+          echo "找到 $(wc -l < "$ALL_FUNCTIONS" | tr -d ' ') 个唯一函数"
+          
           # 为每个头文件生成精确的万能宏
           while IFS= read -r header; do
             if [ -z "$header" ]; then
@@ -113,6 +125,14 @@ jobs:
             
             name=$(basename "$header" .h)
             filepath="Cyanide/tweaks/private/$header"
+            
+            # 跳过已存在且非空的文件（可选）
+            if [ -f "$filepath" ] && [ -s "$filepath" ]; then
+              if grep -q "#define ${name}_" "$filepath" 2>/dev/null; then
+                echo "⏭️  跳过已存在的: $header"
+                continue
+              fi
+            fi
             
             echo ""
             echo "生成: $header"
@@ -129,38 +149,41 @@ jobs:
           
           EOF
             
-            # 扫描 SettingsViewController.m 中所有该前缀的函数调用
-            # 提取函数名，生成对应的宏
-            grep -oE "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | \
-              sed 's/($//' | \
-              sort -u | \
+            # 从收集的函数中筛选出属于该头文件的函数
+            HAS_FUNC=false
+            grep "^${name}_" "$ALL_FUNCTIONS" 2>/dev/null | \
               while read -r func_name; do
+                HAS_FUNC=true
                 # 根据函数名特征判断返回类型
-                if [[ "$func_name" == *"poll"* ]] || [[ "$func_name" == *"Poll"* ]]; then
-                  # poll 函数返回 NSString*
+                if [[ "$func_name" == *"poll"* ]] || [[ "$func_name" == *"Poll"* ]] || [[ "$func_name" == *"copy"* ]]; then
+                  # 返回对象类型
                   echo "#define $func_name(...) nil" >> "$filepath"
-                  echo "  📝 #define $func_name(...) nil"
-                elif [[ "$func_name" == *"has"* ]] || [[ "$func_name" == *"Has"* ]]; then
-                  # has 函数返回 bool
+                  echo "  📝 #define $func_name(...) nil  (返回对象)"
+                elif [[ "$func_name" == *"has"* ]] || [[ "$func_name" == *"Has"* ]] || [[ "$func_name" == *"is"* ]] || [[ "$func_name" == *"Is"* ]]; then
+                  # 返回 BOOL
                   echo "#define $func_name(...) false" >> "$filepath"
-                  echo "  📝 #define $func_name(...) false"
-                elif [[ "$func_name" == *"forget"* ]] || [[ "$func_name" == *"Forget"* ]]; then
-                  # forget 函数无返回值
+                  echo "  📝 #define $func_name(...) false  (返回布尔)"
+                elif [[ "$func_name" == *"forget"* ]] || [[ "$func_name" == *"Forget"* ]] || [[ "$func_name" == *"release"* ]] || [[ "$func_name" == *"Release"* ]]; then
+                  # 无返回值
                   echo "#define $func_name(...)" >> "$filepath"
-                  echo "  📝 #define $func_name(...)"
+                  echo "  📝 #define $func_name(...)  (无返回值)"
+                elif [[ "$func_name" == *"stop"* ]] || [[ "$func_name" == *"Stop"* ]]; then
+                  # 停止类函数返回 bool
+                  echo "#define $func_name(...) true" >> "$filepath"
+                  echo "  📝 #define $func_name(...) true  (返回成功)"
                 else
                   # 其他函数返回 true
                   echo "#define $func_name(...) true" >> "$filepath"
-                  echo "  📝 #define $func_name(...) true"
+                  echo "  📝 #define $func_name(...) true  (返回成功)"
                 fi
               done
             
-            # 如果没有找到任何函数，生成默认宏
+            # 如果没有找到任何函数，生成默认存根
             if [ ! -s "$filepath" ] || [ $(grep -c "^#define" "$filepath" 2>/dev/null || echo "0") -eq 0 ]; then
               echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
               echo "#define ${name}_stop_in_session(...) true" >> "$filepath"
               echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
-              echo "  ⚠️ 未找到函数调用，使用默认宏"
+              echo "  ⚠️ 未找到函数调用，使用默认存根"
             fi
             
             # 为 typebanner 添加常量
@@ -176,6 +199,9 @@ jobs:
             echo "  ✅ 完成，共 $(grep -c '^#define' "$filepath" 2>/dev/null || echo 0) 个宏"
             
           done < required_headers.txt
+          
+          # 清理临时目录
+          rm -rf "$TMP_DIR"
           
           echo ""
           echo "=== 生成的私有头文件 ==="
