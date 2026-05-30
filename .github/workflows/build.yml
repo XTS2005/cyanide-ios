@@ -105,8 +105,8 @@ jobs:
       # --------------------------------------------------------
       - name: 自动生成私有头文件
         run: |
-          chmod +x .github/scripts/gen_private_headers.sh
-          .github/scripts/gen_private_headers.sh
+          chmod +x scripts/gen_private_headers.sh
+          scripts/gen_private_headers.sh
 
       # --------------------------------------------------------
       # 构建 IPA
