@@ -85,7 +85,7 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 自动生成私有头文件
+      # 自动生成私有头文件（常量自动识别）
       # ============================================
       - name: 自动生成私有头文件
         run: |
@@ -102,6 +102,7 @@ jobs:
             exit 0
           fi
           
+          echo "找到以下头文件:"
           cat required_headers.txt
           
           # 为每个头文件生成宏
@@ -140,12 +141,18 @@ jobs:
               echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
             fi
             
-            # typebanner 常量
-            [[ "$header" == "typebanner.h" ]] && cat >> "$filepath" << 'EOF'
-          
-          #define TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS 3000
-          #define TYPEBANNER_RC_MOBILESMS_FIRST_EXCEPTION_TIMEOUT_MS 3000
-          EOF
+            # typebanner 常量（自动识别）
+            if [[ "$header" == "typebanner.h" ]]; then
+              # 从 SettingsViewController.m 中提取所有 TYPEBANNER_RC_ 开头的常量
+              CONSTS=$(grep -oE 'TYPEBANNER_RC_[A-Z_]+' Cyanide/SettingsViewController.m 2>/dev/null | sort -u)
+              if [ -n "$CONSTS" ]; then
+                echo "" >> "$filepath"
+                echo "// Auto-generated constants" >> "$filepath"
+                echo "$CONSTS" | while read -r const; do
+                  echo "#define $const 3000" >> "$filepath"
+                done
+              fi
+            fi
             
             echo "✅ $header ($(grep -c '^#define' "$filepath") 个宏)"
           done < required_headers.txt
