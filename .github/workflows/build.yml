@@ -85,42 +85,24 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 自动识别并生成所有私有头文件
+      # 从 SettingsViewController.m 扫描并生成私有头文件
       # ============================================
-      - name: 自动生成私有头文件
+      - name: 生成私有头文件
         run: |
           mkdir -p Cyanide/tweaks/private
           
-          # 步骤1: 扫描所有需要的私有头文件
-          echo "=== 扫描需要的私有头文件 ==="
-          grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
-            sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | \
-            sort -u > required_headers.txt
+          # 定义需要扫描的头文件列表
+          HEADERS="rssidisplay typebanner"
           
-          if [ ! -s required_headers.txt ]; then
-            echo "没有找到任何私有头文件引用"
-            exit 0
-          fi
-          
-          echo "找到以下私有头文件引用:"
-          cat required_headers.txt
-          
-          # 步骤2: 为每个头文件生成声明
-          while IFS= read -r header; do
-            if [ -z "$header" ]; then
-              continue
-            fi
+          for header in $HEADERS; do
+            filepath="Cyanide/tweaks/private/${header}.h"
             
-            name=$(basename "$header" .h)
-            filepath="Cyanide/tweaks/private/$header"
-            
-            echo ""
-            echo "生成: $header"
+            echo "生成: ${header}.h"
             
             # 写入头文件头部
             cat > "$filepath" << 'EOF'
           //
-          //  Auto-generated from source code
+          //  Auto-generated from SettingsViewController.m
           //  Cyanide
           //
           
@@ -129,86 +111,86 @@ jobs:
           
           EOF
             
-            # 扫描 SettingsViewController.m 中该头文件相关的函数调用
-            if grep -q "${name}_" Cyanide/SettingsViewController.m 2>/dev/null; then
-              grep -E "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | \
-                sed -E 's/.*('${name}'_[a-zA-Z_]+) *\(([^)]*)\).*/###\1###\2###/' | \
-                sort -u | \
-                while IFS='###' read -r func_name params rest; do
-                  if [ -z "$func_name" ]; then
-                    continue
-                  fi
-                  
-                  clean_params=$(echo "$params" | sed -E 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                  
-                  if [ -z "$clean_params" ] || [ "$clean_params" = "void" ]; then
-                    echo "static inline bool $func_name(void) { return true; }" >> "$filepath"
-                  else
-                    typed_params=""
-                    IFS=',' read -ra PARTS <<< "$clean_params"
-                    for part in "${PARTS[@]}"; do
-                      part=$(echo "$part" | sed -E 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                      
-                      if [[ "$part" == *"RemoteCallSession"* ]] || [[ "$part" == *"session"* ]]; then
-                        if [[ "$part" == *"**"* ]]; then
-                          typed_params="${typed_params}RemoteCallSession **p, "
-                        else
-                          typed_params="${typed_params}RemoteCallSession *p, "
-                        fi
-                      elif [[ "$part" == *"BOOL"* ]] || [[ "$part" == *"hasSpringBoard"* ]]; then
-                        typed_params="${typed_params}BOOL p, "
-                      elif [[ "$part" == *"NSString"* ]] || [[ "$part" == *"label"* ]] || [[ "$part" == *"str"* ]]; then
-                        typed_params="${typed_params}NSString *p, "
-                      elif [[ "$part" == "showWifi" ]] || [[ "$part" == "showCell" ]]; then
-                        typed_params="${typed_params}bool p, "
-                      elif [[ "$part" == *"&"* ]]; then
-                        typed_params="${typed_params}void **p, "
+            # 扫描 SettingsViewController.m 中的函数调用并生成声明
+            # 匹配模式: 函数名(参数)
+            grep -E "${header}_[a-z_]+\\(" Cyanide/SettingsViewController.m | \
+              sed -E 's/.*('${header}'_[a-zA-Z_]+) *\(([^)]*)\).*/###\1###\2###/' | \
+              sort -u | \
+              while IFS='###' read -r func_name params rest; do
+                if [ -z "$func_name" ]; then
+                  continue
+                fi
+                
+                # 清理参数
+                clean_params=$(echo "$params" | sed -E 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                
+                if [ -z "$clean_params" ] || [ "$clean_params" = "void" ]; then
+                  # 无参数函数
+                  echo "static inline bool $func_name(void) { return true; }" >> "$filepath"
+                else
+                  # 有参数函数：推断类型
+                  typed_params=""
+                  IFS=',' read -ra PARTS <<< "$clean_params"
+                  for part in "${PARTS[@]}"; do
+                    part=$(echo "$part" | sed -E 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                    
+                    # 类型推断规则
+                    if [[ "$part" == *"RemoteCallSession"* ]] || [[ "$part" == *"session"* ]]; then
+                      if [[ "$part" == *"**"* ]]; then
+                        typed_params="${typed_params}RemoteCallSession **p, "
                       else
-                        typed_params="${typed_params}bool p, "
+                        typed_params="${typed_params}RemoteCallSession *p, "
                       fi
-                    done
-                    typed_params=$(echo "$typed_params" | sed 's/, $//')
-                    echo "static inline bool $func_name($typed_params) { return true; }" >> "$filepath"
-                  fi
-                done
-              
-              # 去重
-              sort -u "$filepath" > "${filepath}.tmp"
-              mv "${filepath}.tmp" "$filepath"
-              echo "  ✅ 找到 $(grep -c 'static inline' "$filepath" 2>/dev/null || echo 0) 个函数"
-            else
-              # 没有找到函数调用，生成默认存根
-              echo "static inline bool ${name}_apply_in_session(void) { return true; }" >> "$filepath"
-              echo "static inline bool ${name}_stop_in_session(void) { return true; }" >> "$filepath"
-              echo "static inline void ${name}_forget_remote_state(void) {}" >> "$filepath"
-              echo "  ⚠️ 未找到函数调用，使用默认存根"
+                    elif [[ "$part" == *"BOOL"* ]] || [[ "$part" == *"hasSpringBoard"* ]]; then
+                      typed_params="${typed_params}BOOL p, "
+                    elif [[ "$part" == *"NSString"* ]] || [[ "$part" == *"label"* ]] || [[ "$part" == *"str"* ]]; then
+                      typed_params="${typed_params}NSString *p, "
+                    elif [[ "$part" == "showWifi" ]] || [[ "$part" == "showCell" ]]; then
+                      typed_params="${typed_params}bool p, "
+                    elif [[ "$part" == *"&"* ]]; then
+                      typed_params="${typed_params}void **p, "
+                    else
+                      typed_params="${typed_params}bool p, "
+                    fi
+                  done
+                  # 去掉末尾的逗号和空格
+                  typed_params=$(echo "$typed_params" | sed 's/, $//')
+                  
+                  echo "static inline bool $func_name($typed_params) { return true; }" >> "$filepath"
+                fi
+              done
+            
+            # 如果没有生成任何函数，添加默认存根
+            if [ ! -s "$filepath" ] || [ $(grep -c "static inline" "$filepath" 2>/dev/null || echo "0") -eq 0 ]; then
+              echo "static inline bool ${header}_apply_in_session(void) { return true; }" >> "$filepath"
+              echo "static inline bool ${header}_stop_in_session(void) { return true; }" >> "$filepath"
+              echo "static inline void ${header}_forget_remote_state(void) {}" >> "$filepath"
             fi
             
-            # 为 typebanner 添加常量（因为原代码中用到了）
-            if [[ "$header" == "typebanner.h" ]]; then
-              # 检查是否已有常量定义
-              if ! grep -q "TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS" "$filepath"; then
-                echo "" >> "$filepath"
-                echo "#define TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS 3000" >> "$filepath"
-                echo "#define TYPEBANNER_RC_MOBILESMS_FIRST_EXCEPTION_TIMEOUT_MS 3000" >> "$filepath"
-                echo "  ✅ 添加 typebanner 常量"
-              fi
+            # 去重
+            sort -u "$filepath" > "${filepath}.tmp"
+            mv "${filepath}.tmp" "$filepath"
+            
+            # 添加 typebanner 常量
+            if [ "$header" = "typebanner" ]; then
+              echo "" >> "$filepath"
+              echo "#define TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS 3000" >> "$filepath"
+              echo "#define TYPEBANNER_RC_MOBILESMS_FIRST_EXCEPTION_TIMEOUT_MS 3000" >> "$filepath"
             fi
             
-          done < required_headers.txt
+            echo "  ✅ 已生成: ${header}.h"
+            echo "  函数数量: $(grep -c 'static inline' "$filepath" 2>/dev/null || echo 0)"
+            
+          done
           
-          echo ""
           echo "=== 生成的私有头文件 ==="
           ls -la Cyanide/tweaks/private/
           
-          # 显示每个头文件内容（调试用）
-          echo ""
-          echo "=== 头文件内容 ==="
-          for f in Cyanide/tweaks/private/*.h; do
-            echo ""
-            echo "--- $(basename "$f") ---"
-            cat "$f"
-          done
+          echo "=== rssidisplay.h 内容 ==="
+          cat Cyanide/tweaks/private/rssidisplay.h
+          
+          echo "=== typebanner.h 内容 ==="
+          cat Cyanide/tweaks/private/typebanner.h
 
       - name: 构建 IPA
         run: |
