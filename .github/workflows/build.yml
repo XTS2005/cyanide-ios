@@ -85,47 +85,44 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 完全自动生成私有头文件
+      # 完全自动生成私有头文件（优化版）
       # ============================================
       - name: 自动生成私有头文件
         run: |
           mkdir -p Cyanide/tweaks/private
           
-          # 扫描所有需要的私有头文件
-          echo "=== 扫描私有头文件 ==="
-          grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
-            sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | \
-            sort -u > required_headers.txt
+          # 1. 扫描需要的私有头文件
+          HEADERS=$(grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
+                    sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | sort -u)
           
-          if [ ! -s required_headers.txt ]; then
+          if [ -z "$HEADERS" ]; then
             echo "无需生成私有头文件"
             exit 0
           fi
           
-          echo "找到以下头文件:"
-          cat required_headers.txt
+          echo "需要生成: $HEADERS"
           
-          # 提取所有函数调用（一次性）
-          FUNC_CALLS=$(grep -oE '[a-z]+_[a-z_]+\\(' Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
+          # 2. 提取所有函数和常量（一次性扫描）
+          MAIN_FILE="Cyanide/SettingsViewController.m"
+          FUNCS_ALL=$(grep -oE '[a-z]+_[a-z_]+\\(' "$MAIN_FILE" 2>/dev/null | sed 's/($//' | sort -u)
+          CONSTS_ALL=$(grep -oE '\b[A-Z][A-Z0-9_]{3,}\b' "$MAIN_FILE" 2>/dev/null | grep -v '^[0-9]' | sort -u)
           
-          # 提取所有常量（一次性）
-          ALL_CONSTS=$(grep -oE '[A-Z][A-Z0-9_]+' Cyanide/SettingsViewController.m 2>/dev/null | grep -E '^[A-Z_]+$' | sort -u)
-          
-          # 为每个头文件生成宏
-          while IFS= read -r header; do
-            [ -z "$header" ] && continue
+          # 3. 为每个头文件生成内容
+          for header in $HEADERS; do
             name=$(basename "$header" .h)
             filepath="Cyanide/tweaks/private/$header"
             
-            # 筛选属于该头文件的函数
-            FUNCS=$(echo "$FUNC_CALLS" | grep "^${name}_" || true)
+            # 筛选函数
+            FUNCS=$(echo "$FUNCS_ALL" | grep "^${name}_" || true)
+            # 筛选常量（以头文件名大写开头或包含头文件名）
+            CONSTS=$(echo "$CONSTS_ALL" | grep -i "_${name}_" || true)
+            CONSTS="$CONSTS$(echo "$CONSTS_ALL" | grep -i "^${name}_" || true)"
+            CONSTS=$(echo "$CONSTS" | sort -u)
             
-            # 筛选可能属于该头文件的常量（以头文件名大写开头）
-            CONSTS=$(echo "$ALL_CONSTS" | grep -E "^${name^^}_" || true)
-            
+            # 写入头部
             cat > "$filepath" << 'EOF'
           //
-          //  Auto-generated from source code
+          //  Auto-generated
           //  Cyanide
           //
           
@@ -138,33 +135,38 @@ jobs:
             if [ -n "$FUNCS" ]; then
               echo "$FUNCS" | while read -r func; do
                 case "$func" in
-                  *poll*|*Poll*)      echo "#define $func(...) nil" ;;
-                  *has*|*Has*|*is*|*Is*) echo "#define $func(...) false" ;;
-                  *forget*|*Forget*|*release*|*Release*) echo "#define $func(...)" ;;
-                  *stop*|*Stop*)      echo "#define $func(...) true" ;;
-                  *)                  echo "#define $func(...) true" ;;
+                  *poll*)   echo "#define $func(...) nil" ;;
+                  *has*)    echo "#define $func(...) false" ;;
+                  *is*)     echo "#define $func(...) false" ;;
+                  *forget*) echo "#define $func(...)" ;;
+                  *release*)echo "#define $func(...)" ;;
+                  *stop*)   echo "#define $func(...) true" ;;
+                  *)        echo "#define $func(...) true" ;;
                 esac
               done >> "$filepath"
             fi
             
-            # 生成常量定义
+            # 生成常量
             if [ -n "$CONSTS" ]; then
-              echo "" >> "$filepath"
-              echo "// Auto-generated constants" >> "$filepath"
+              [ -n "$FUNCS" ] && echo "" >> "$filepath"
+              echo "// Constants" >> "$filepath"
               echo "$CONSTS" | while read -r const; do
                 echo "#define $const 3000" >> "$filepath"
               done
             fi
             
-            # 如果没有找到任何内容，生成默认存根
-            if [ $(grep -c '^#define' "$filepath" 2>/dev/null || echo "0") -eq 0 ]; then
+            # 默认存根
+            if [ $(grep -c '^#define' "$filepath" 2>/dev/null || echo 0) -eq 0 ]; then
               echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
               echo "#define ${name}_stop_in_session(...) true" >> "$filepath"
               echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
             fi
             
-            echo "✅ $header ($(grep -c '^#define' "$filepath") 个定义)"
-          done < required_headers.txt
+            # 去重
+            sort -u "$filepath" > "${filepath}.tmp" && mv "${filepath}.tmp" "$filepath"
+            
+            echo "✅ $header ($(grep -c '^#define' "$filepath") defs)"
+          done
           
           echo "=== 生成完成 ==="
           ls -la Cyanide/tweaks/private/
