@@ -85,62 +85,37 @@ jobs:
           /opt/homebrew/bin/bash scripts/gen-changelog.sh
 
       # ============================================
-      # 自动生成私有头文件（优化版）
+      # 自动生成私有头文件
       # ============================================
       - name: 自动生成私有头文件
         run: |
           mkdir -p Cyanide/tweaks/private
           
-          # 扫描所有需要的私有头文件
-          echo "=== 扫描需要的私有头文件 ==="
+          # 扫描需要的私有头文件
+          echo "=== 扫描私有头文件 ==="
           grep -rh '#import "tweaks/private/' Cyanide/ --include="*.m" --include="*.h" 2>/dev/null | \
             sed -E 's/.*#import "tweaks\/private\/([^"]+\.h)".*/\1/' | \
             sort -u > required_headers.txt
           
           if [ ! -s required_headers.txt ]; then
-            echo "没有找到任何私有头文件引用"
+            echo "无需生成私有头文件"
             exit 0
           fi
           
-          echo "找到以下私有头文件引用:"
           cat required_headers.txt
           
-          # 收集所有源文件中的函数调用
-          echo ""
-          echo "=== 扫描函数调用 ==="
-          TMP_DIR=$(mktemp -d)
-          ALL_FUNCTIONS="$TMP_DIR/all_functions.txt"
-          
-          # 扫描所有 .m 文件中的函数调用（格式: xxx_yyy(）
-          find Cyanide -name "*.m" -exec grep -oE '[a-z]+_[a-z_]+\\(' {} \; 2>/dev/null | \
-            sed 's/($//' | sort -u > "$ALL_FUNCTIONS"
-          
-          echo "找到 $(wc -l < "$ALL_FUNCTIONS" | tr -d ' ') 个唯一函数"
-          
-          # 为每个头文件生成精确的万能宏
+          # 为每个头文件生成宏
           while IFS= read -r header; do
-            if [ -z "$header" ]; then
-              continue
-            fi
-            
+            [ -z "$header" ] && continue
             name=$(basename "$header" .h)
             filepath="Cyanide/tweaks/private/$header"
             
-            # 跳过已存在且非空的文件（可选）
-            if [ -f "$filepath" ] && [ -s "$filepath" ]; then
-              if grep -q "#define ${name}_" "$filepath" 2>/dev/null; then
-                echo "⏭️  跳过已存在的: $header"
-                continue
-              fi
-            fi
+            # 提取函数名（去重）
+            FUNCS=$(grep -oE "${name}_[a-z_]+\\(" Cyanide/SettingsViewController.m 2>/dev/null | sed 's/($//' | sort -u)
             
-            echo ""
-            echo "生成: $header"
-            
-            # 写入头文件头部
             cat > "$filepath" << 'EOF'
           //
-          //  Auto-generated from source code
+          //  Auto-generated
           //  Cyanide
           //
           
@@ -149,84 +124,47 @@ jobs:
           
           EOF
             
-            # 从收集的函数中筛选出属于该头文件的函数
-            HAS_FUNC=false
-            grep "^${name}_" "$ALL_FUNCTIONS" 2>/dev/null | \
-              while read -r func_name; do
-                HAS_FUNC=true
-                # 根据函数名特征判断返回类型
-                if [[ "$func_name" == *"poll"* ]] || [[ "$func_name" == *"Poll"* ]] || [[ "$func_name" == *"copy"* ]]; then
-                  # 返回对象类型
-                  echo "#define $func_name(...) nil" >> "$filepath"
-                  echo "  📝 #define $func_name(...) nil  (返回对象)"
-                elif [[ "$func_name" == *"has"* ]] || [[ "$func_name" == *"Has"* ]] || [[ "$func_name" == *"is"* ]] || [[ "$func_name" == *"Is"* ]]; then
-                  # 返回 BOOL
-                  echo "#define $func_name(...) false" >> "$filepath"
-                  echo "  📝 #define $func_name(...) false  (返回布尔)"
-                elif [[ "$func_name" == *"forget"* ]] || [[ "$func_name" == *"Forget"* ]] || [[ "$func_name" == *"release"* ]] || [[ "$func_name" == *"Release"* ]]; then
-                  # 无返回值
-                  echo "#define $func_name(...)" >> "$filepath"
-                  echo "  📝 #define $func_name(...)  (无返回值)"
-                elif [[ "$func_name" == *"stop"* ]] || [[ "$func_name" == *"Stop"* ]]; then
-                  # 停止类函数返回 bool
-                  echo "#define $func_name(...) true" >> "$filepath"
-                  echo "  📝 #define $func_name(...) true  (返回成功)"
-                else
-                  # 其他函数返回 true
-                  echo "#define $func_name(...) true" >> "$filepath"
-                  echo "  📝 #define $func_name(...) true  (返回成功)"
-                fi
-              done
-            
-            # 如果没有找到任何函数，生成默认存根
-            if [ ! -s "$filepath" ] || [ $(grep -c "^#define" "$filepath" 2>/dev/null || echo "0") -eq 0 ]; then
+            if [ -n "$FUNCS" ]; then
+              while read -r func; do
+                case "$func" in
+                  *poll*|*Poll*)  echo "#define $func(...) nil" ;;
+                  *has*|*Has*)    echo "#define $func(...) false" ;;
+                  *forget*|*Forget*) echo "#define $func(...)" ;;
+                  *)              echo "#define $func(...) true" ;;
+                esac
+              done <<< "$FUNCS" >> "$filepath"
+            else
+              # 默认存根
               echo "#define ${name}_apply_in_session(...) true" >> "$filepath"
               echo "#define ${name}_stop_in_session(...) true" >> "$filepath"
               echo "#define ${name}_forget_remote_state(...)" >> "$filepath"
-              echo "  ⚠️ 未找到函数调用，使用默认存根"
             fi
             
-            # 为 typebanner 添加常量
-            if [[ "$header" == "typebanner.h" ]]; then
-              if ! grep -q "TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS" "$filepath"; then
-                echo "" >> "$filepath"
-                echo "#define TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS 3000" >> "$filepath"
-                echo "#define TYPEBANNER_RC_MOBILESMS_FIRST_EXCEPTION_TIMEOUT_MS 3000" >> "$filepath"
-                echo "  📝 添加 typebanner 常量"
-              fi
-            fi
+            # typebanner 常量
+            [[ "$header" == "typebanner.h" ]] && cat >> "$filepath" << 'EOF'
+          
+          #define TYPEBANNER_RC_FIRST_EXCEPTION_TIMEOUT_MS 3000
+          #define TYPEBANNER_RC_MOBILESMS_FIRST_EXCEPTION_TIMEOUT_MS 3000
+          EOF
             
-            echo "  ✅ 完成，共 $(grep -c '^#define' "$filepath" 2>/dev/null || echo 0) 个宏"
-            
+            echo "✅ $header ($(grep -c '^#define' "$filepath") 个宏)"
           done < required_headers.txt
           
-          # 清理临时目录
-          rm -rf "$TMP_DIR"
-          
-          echo ""
-          echo "=== 生成的私有头文件 ==="
+          echo "=== 生成完成 ==="
           ls -la Cyanide/tweaks/private/
-          
-          echo ""
-          echo "=== rssidisplay.h 内容 ==="
-          cat Cyanide/tweaks/private/rssidisplay.h 2>/dev/null || echo "文件不存在"
-          
-          echo ""
-          echo "=== typebanner.h 内容 ==="
-          cat Cyanide/tweaks/private/typebanner.h 2>/dev/null || echo "文件不存在"
 
       - name: 构建 IPA
         run: |
           chmod +x scripts/build.sh
           ./scripts/build.sh
 
-      - name: 上传 IPA（供 release 任务使用）
+      - name: 上传 IPA
         uses: actions/upload-artifact@v4
         with:
           name: release-ipa
           path: build/Cyanide-*.ipa
 
-  # Release 任务（独立显示）
+  # Release 任务
   release:
     runs-on: ubuntu-latest
     needs: [build]
@@ -242,27 +180,21 @@ jobs:
           name: release-ipa
           path: build/
 
-      - name: 获取 IPA 版本和最新 Tag
+      - name: 获取版本信息
         id: version
         run: |
           IPA=$(ls build/Cyanide-*.ipa | head -1)
           VERSION=$(echo "$IPA" | sed -E 's/.*Cyanide-([0-9.]+)\.ipa/\1/')
-          
           LATEST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9.]+$' | head -1)
-          if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v${VERSION}"
-          fi
-          
+          [ -z "$LATEST_TAG" ] && LATEST_TAG="v${VERSION}"
           echo "ipa=$IPA" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
 
-      - name: 获取最近 12 小时提交
+      - name: 获取提交记录
         run: |
-          COMMITS=$(git log --since="12 hours ago" --pretty=format:"- %h %s (%an)")
-          if [ -z "$COMMITS" ]; then
-            COMMITS="最近 12 小时没有新提交"
-          fi
+          COMMITS=$(git log --since="12 hours ago" --pretty=format:"- %h %s (%an)" | head -20)
+          [ -z "$COMMITS" ] && COMMITS="最近 12 小时没有新提交"
           echo "COMMITS<<EOF" >> $GITHUB_ENV
           echo "$COMMITS" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
@@ -277,33 +209,10 @@ jobs:
           ${COMMITS}
           EOF
 
-      - name: 更新每日构建 Release
+      - name: 更新 Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="${{ steps.version.outputs.tag }}"
-          IPA_FILE="${{ steps.version.outputs.ipa }}"
-          
-          # 清理旧 IPA
-          for asset in $(gh release view nightly --json assets -q '.assets[].name | select(contains(".ipa"))' 2>/dev/null); do
-            gh release delete-asset nightly "$asset" --yes || true
-          done
-          
-          # 删除本地 nightly tag 避免冲突
-          if git rev-parse -q --verify "refs/tags/nightly" >/dev/null; then
-            git tag -d nightly
-          fi
-          
-          # 创建或更新 release
-          gh release view nightly >/dev/null 2>&1 || \
-          gh release create nightly \
-            --title "${TAG_NAME}" \
-            --notes "初始每日构建" \
-            --draft=false \
-            --target main
-          
-          gh release edit nightly \
-            --title "${TAG_NAME}" \
-            --notes-file release_notes.txt
-          
-          gh release upload nightly "$IPA_FILE" --clobber
+          gh release view nightly >/dev/null 2>&1 || gh release create nightly --notes "初始每日构建" --target main
+          gh release edit nightly --title "${{ steps.version.outputs.tag }}" --notes-file release_notes.txt
+          gh release upload nightly "${{ steps.version.outputs.ipa }}" --clobber
